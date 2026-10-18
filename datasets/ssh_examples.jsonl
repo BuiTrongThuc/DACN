@@ -1,0 +1,4 @@
+{"timestamp":"2025-01-01T10:00:00+00:00","source_ip":"203.0.113.10","username":"admin","event_type":"failed"}
+{"timestamp":"2025-01-01T10:00:20+00:00","source_ip":"203.0.113.10","username":"root","event_type":"failed"}
+{"timestamp":"2025-01-01T10:01:00+00:00","source_ip":"203.0.113.10","username":"deploy","event_type":"failed"}
+{"timestamp":"2025-01-01T10:02:00+00:00","source_ip":"198.51.100.7","username":"operator","event_type":"success"}

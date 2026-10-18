@@ -1,0 +1,2 @@
+{"source_ip":"203.0.113.10","window_seconds":300,"failed_attempts":3,"threshold":3,"expected_candidate":true}
+{"source_ip":"198.51.100.7","window_seconds":300,"failed_attempts":0,"threshold":3,"expected_candidate":false}

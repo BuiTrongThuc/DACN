@@ -1,0 +1,37 @@
+ingestion:
+  log_path: /var/log/auth.log
+  poll_interval_seconds: 1.0
+
+detection:
+  window_seconds: 300
+  failed_attempt_threshold: 5
+
+policy:
+  allowlist:
+    - 127.0.0.1
+    - ::1
+  block_private_addresses: true
+
+actions:
+  dry_run: true
+  # Example for Linux with iptables. Configure deliberately and run with
+  # appropriate privileges before setting dry_run to false.
+  firewall_command:
+    - iptables
+    - -I
+    - INPUT
+    - -s
+    - "{ip}"
+    - -j
+    - DROP
+
+audit:
+  path: globalban-audit.jsonl
+
+ai:
+  enabled: false
+  base_url: https://api.openai.com/v1
+  model: gpt-4o-mini
+
+notifications:
+  whatsapp_enabled: false
