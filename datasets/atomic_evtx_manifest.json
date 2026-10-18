@@ -1,0 +1,26 @@
+{
+  "source": "https://github.com/arniki/atomic-evtx",
+  "source_commit": "8de5fa8f158b4d72d1e3c6f07053162c90ee6238",
+  "license_status": "No license file was identified during review; obtain permission before redistributing raw logs.",
+  "scenario_count_reported": 1064,
+  "categories_reported": {
+    "initial-access": 12,
+    "exfiltration": 14,
+    "lateral-movement": 21,
+    "collection": 28,
+    "impact": 30,
+    "command-and-control": 53,
+    "persistence": 60,
+    "execution": 61,
+    "credential-access": 118,
+    "privilege-escalation": 119,
+    "discovery": 181,
+    "defense-evasion": 367
+  },
+  "local_import": "Download full_list_of_attacks_simulated.csv outside this repository and pass its path to globalban.evaluation.atomic_catalog.load_atomic_catalog.",
+  "variants": [
+    "attacks_by_category_unfiltered",
+    "attacks_by_category_atomic_removed",
+    "attacks_by_category_atomic_and_tools_removed"
+  ]
+}

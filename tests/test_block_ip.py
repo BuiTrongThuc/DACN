@@ -47,3 +47,23 @@ def test_firewall_errors_are_not_hidden(monkeypatch):
 
     with pytest.raises(OSError, match="firewall unavailable"):
         blocker.block(ip_address("8.8.8.8"))
+
+
+def test_rollback_uses_configured_argument_list(monkeypatch):
+    observed = {}
+
+    def fake_run(command, **kwargs):
+        observed["command"] = command
+        return CompletedProcess(command, 0, stdout="removed", stderr="")
+
+    monkeypatch.setattr("globalban.actions.block_ip.subprocess.run", fake_run)
+    blocker = IPBlocker(
+        command_template=("firewall", "block", "{ip}"),
+        rollback_command_template=("firewall", "unblock", "{ip}"),
+        dry_run=False,
+    )
+
+    result = blocker.rollback(ip_address("8.8.8.8"))
+
+    assert result.blocked is True
+    assert observed["command"] == ["firewall", "unblock", "8.8.8.8"]

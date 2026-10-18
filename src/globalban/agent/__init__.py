@@ -1,0 +1,1 @@
+"""Allowlisted AI-agent tool contracts."""

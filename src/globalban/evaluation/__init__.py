@@ -1,0 +1,1 @@
+"""Evaluation helpers for detection quality and response timing."""

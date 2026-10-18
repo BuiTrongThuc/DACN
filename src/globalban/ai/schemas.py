@@ -9,6 +9,12 @@ from typing import Any
 class AIExplanation:
     severity: str
     summary: str
+    confidence: float = 0.0
+    evidence: tuple[str, ...] = ()
+    hypotheses: tuple[str, ...] = ()
+    mitre_attack: tuple[str, ...] = ()
+    missing_data: tuple[str, ...] = ()
+    recommended_actions: tuple[str, ...] = ()
 
 
 def parse_explanation(content: str) -> AIExplanation:
@@ -24,4 +30,27 @@ def parse_explanation(content: str) -> AIExplanation:
         raise ValueError("AI response severity must be low, medium, or high")
     if not isinstance(summary, str) or not summary.strip() or len(summary) > 500:
         raise ValueError("AI response summary must contain 1 to 500 characters")
-    return AIExplanation(severity=severity, summary=summary.strip())
+    confidence = data.get("confidence", 0.0)
+    if (
+        isinstance(confidence, bool)
+        or not isinstance(confidence, (int, float))
+        or not 0 <= confidence <= 1
+    ):
+        raise ValueError("AI response confidence must be between 0 and 1")
+
+    def string_tuple(name: str) -> tuple[str, ...]:
+        value = data.get(name, [])
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise ValueError(f"AI response {name} must be a list of strings")
+        return tuple(item.strip() for item in value if item.strip())
+
+    return AIExplanation(
+        severity=severity,
+        summary=summary.strip(),
+        confidence=float(confidence),
+        evidence=string_tuple("evidence"),
+        hypotheses=string_tuple("hypotheses"),
+        mitre_attack=string_tuple("mitre_attack"),
+        missing_data=string_tuple("missing_data"),
+        recommended_actions=string_tuple("recommended_actions"),
+    )

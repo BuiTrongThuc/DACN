@@ -1,10 +1,20 @@
 ingestion:
   log_path: /var/log/auth.log
   poll_interval_seconds: 1.0
+  # Use windows_event_log on Windows 11; file remains the default for Linux fixtures.
+  source: file
+  log_names:
+    - Security
+    - System
+    - Microsoft-Windows-PowerShell/Operational
+    - Microsoft-Windows-Sysmon/Operational
+    - Microsoft-Windows-Windows Defender/Operational
 
 detection:
   window_seconds: 300
   failed_attempt_threshold: 5
+  baseline_path: globalban-baseline.json
+  baseline_warmup_events: 20
 
 policy:
   allowlist:
@@ -24,14 +34,22 @@ actions:
     - "{ip}"
     - -j
     - DROP
+  rollback_command:
+    - iptables
+    - -D
+    - INPUT
+    - -s
+    - "{ip}"
+    - -j
+    - DROP
 
 audit:
   path: globalban-audit.jsonl
 
 ai:
-  enabled: false
-  base_url: https://api.openai.com/v1
-  model: gpt-4o-mini
+  enabled: true
+  base_url: http://192.168.52.131:8080/v1
+  model: gemini-2.5-flash
 
 notifications:
   whatsapp_enabled: false

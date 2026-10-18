@@ -1,6 +1,6 @@
 """Safety checks that must pass before a firewall action is considered."""
 
-from ipaddress import ip_address, ip_network
+from ipaddress import IPv4Address, IPv6Address, ip_address, ip_network
 
 from globalban.models.decisions import BanCandidate, PolicyDecision
 
@@ -25,7 +25,9 @@ class PolicyGuard:
         self._block_private_addresses = block_private_addresses
 
     def evaluate(self, candidate: BanCandidate) -> PolicyDecision:
-        address = candidate.source_ip
+        return self.evaluate_address(candidate.source_ip)
+
+    def evaluate_address(self, address: IPv4Address | IPv6Address) -> PolicyDecision:
         if address in self._allowlist_addresses or any(
             address.version == network.version and address in network
             for network in self._allowlist_networks

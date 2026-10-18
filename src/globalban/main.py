@@ -4,17 +4,81 @@ import argparse
 import logging
 from pathlib import Path
 
+from globalban.ai.client import AIClient
+from globalban.agent.router import choose_tools
 from globalban.actions.block_ip import IPBlocker
 from globalban.audit.logger import AuditLogger
 from globalban.config import AppConfig, load_config
 from globalban.detection.aggregator import FailedAttemptAggregator
-from globalban.ingestion.parser import parse_auth_line
+from globalban.detection.baseline import BehaviorBaseline
+from globalban.detection.sequence import SequenceCorrelator
+from globalban.ingestion.parser import (
+    parse_auth_line,
+    parse_windows_event,
+    parse_windows_security_event,
+)
+from globalban.ingestion.windows_source import follow_windows_events
+from globalban.models.events import WindowsEvent
 from globalban.ingestion.tailer import follow_file
 from globalban.notifications.whatsapp import WhatsAppNotifier
 from globalban.policy.guard import PolicyGuard
 from globalban.privacy.masking import mask_ip
 
 logger = logging.getLogger("globalban")
+_HIGH_SIGNAL_EVENT_IDS = frozenset({1102, 4104, 4698, 4702, 4719, 4720, 4724, 4728, 4732, 4740, 7045, 1116, 1117})
+
+
+def _handle_windows_event(
+    event: WindowsEvent,
+    *,
+    correlator: SequenceCorrelator,
+    audit: AuditLogger,
+    ai_client: AIClient | None,
+) -> None:
+    candidate = correlator.add(event)
+    if candidate is None:
+        return
+    tool_plan = choose_tools((event,), risk_score=candidate.score)
+    audit.record(
+        "windows_risk_detected",
+        event_ids=list(candidate.event_ids),
+        score=candidate.score,
+        reasons=list(candidate.reasons),
+        provider=event.provider,
+        selected_tools=list(tool_plan.tools),
+        attack_hypotheses=list(tool_plan.attack_hypotheses),
+        mitre_attack=list(tool_plan.mitre_attack),
+        tool_plan_reasons=list(tool_plan.reasons),
+        behavioral_indicators=list(tool_plan.behavioral_indicators),
+        requires_approval=tool_plan.requires_approval,
+    )
+    if ai_client is None:
+        return
+    try:
+        explanation = ai_client.explain_risk(candidate)
+    except (RuntimeError, ValueError) as exc:
+        logger.warning("Windows AI assessment unavailable: %s", exc)
+        return
+    logger.warning(
+        "Windows behavior score %d assessed as %s: %s",
+        candidate.score,
+        explanation.severity,
+        explanation.summary,
+    )
+    audit.record(
+        "windows_ai_assessment",
+        event_ids=list(candidate.event_ids),
+        score=candidate.score,
+        reasons=list(candidate.reasons),
+        severity=explanation.severity,
+        summary=explanation.summary,
+        confidence=explanation.confidence,
+        evidence=list(explanation.evidence),
+        hypotheses=list(explanation.hypotheses),
+        mitre_attack=list(explanation.mitre_attack),
+        missing_data=list(explanation.missing_data),
+        recommended_actions=list(explanation.recommended_actions),
+    )
 
 
 def _handle_candidate(
@@ -24,6 +88,7 @@ def _handle_candidate(
     blocker: IPBlocker,
     audit: AuditLogger,
     notifier: WhatsAppNotifier | None,
+    ai_client: AIClient | None,
 ) -> None:
     decision = policy.evaluate(candidate)
     if not decision.allowed:
@@ -37,6 +102,13 @@ def _handle_candidate(
         return
 
     result = blocker.block(candidate.source_ip)
+    explanation = None
+    if ai_client is not None:
+        try:
+            explanation = ai_client.explain(candidate)
+            logger.info("AI assessment (%s): %s", explanation.severity, explanation.summary)
+        except (RuntimeError, ValueError) as exc:
+            logger.warning("AI assessment unavailable: %s", exc)
     logger.warning(
         "%s %s after %d failed attempts (%s)",
         "Would block" if not result.blocked else "Blocked",
@@ -51,6 +123,18 @@ def _handle_candidate(
         command=result.command,
         message=result.message,
     )
+    if explanation is not None:
+        audit.record(
+            "ai_assessment",
+            severity=explanation.severity,
+            summary=explanation.summary,
+            confidence=explanation.confidence,
+            evidence=list(explanation.evidence),
+            hypotheses=list(explanation.hypotheses),
+            mitre_attack=list(explanation.mitre_attack),
+            missing_data=list(explanation.missing_data),
+            recommended_actions=list(explanation.recommended_actions),
+        )
     if notifier is not None:
         notifier.send(
             f"GlobalBan alert: {mask_ip(candidate.source_ip)} had "
@@ -62,6 +146,7 @@ def _handle_candidate(
 def run(config: AppConfig, *, dry_run_override: bool = False) -> None:
     blocker = IPBlocker(
         command_template=config.actions.firewall_command,
+        rollback_command_template=config.actions.rollback_command,
         dry_run=config.actions.dry_run or dry_run_override,
     )
     policy = PolicyGuard(
@@ -72,24 +157,101 @@ def run(config: AppConfig, *, dry_run_override: bool = False) -> None:
         window_seconds=config.detection.window_seconds,
         threshold=config.detection.failed_attempt_threshold,
     )
+    baseline = BehaviorBaseline(
+        path=config.detection.baseline_path,
+        warmup_events=config.detection.baseline_warmup_events,
+    )
+    correlator = SequenceCorrelator(
+        window_seconds=config.detection.window_seconds,
+        baseline=baseline,
+    )
     audit = AuditLogger(config.audit.path)
     notifier = (
         WhatsAppNotifier()
         if config.notifications.whatsapp_enabled
         else None
     )
-    log_path = Path(config.ingestion.log_path)
-    if not log_path.exists():
-        raise FileNotFoundError(f"SSH authentication log does not exist: {log_path}")
+    ai_client = (
+        AIClient(base_url=config.ai.base_url, model=config.ai.model)
+        if config.ai.enabled
+        else None
+    )
+    if config.ingestion.source == "windows_event_log":
+        logger.info("Polling Windows Event Log channels: %s", config.ingestion.log_names)
+        records = follow_windows_events(
+            config.ingestion.log_names,
+            poll_interval_seconds=config.ingestion.poll_interval_seconds,
+        )
+    else:
+        log_path = Path(config.ingestion.log_path)
+        if not log_path.exists():
+            raise FileNotFoundError(f"Authentication log does not exist: {log_path}")
+        logger.info("Following authentication log: %s", log_path)
+        records = follow_file(
+            log_path,
+            poll_interval_seconds=config.ingestion.poll_interval_seconds,
+        )
 
-    logger.info("Following SSH authentication log: %s", log_path)
-    for line in follow_file(
-        log_path,
-        poll_interval_seconds=config.ingestion.poll_interval_seconds,
-    ):
-        event = parse_auth_line(line)
+    for line in records:
+        windows_event = parse_windows_security_event(line)
+        if windows_event is not None:
+            tool_plan = choose_tools((windows_event,))
+            if (
+                windows_event.event_id in _HIGH_SIGNAL_EVENT_IDS
+                or tool_plan.behavioral_indicators
+            ):
+                source = mask_ip(windows_event.source_ip) if windows_event.source_ip else "-"
+                logger.warning(
+                    "Suspicious Windows event: id=%d provider=%s host=%s user=%s source=%s tools=%s hypotheses=%s mitre=%s indicators=%s",
+                    windows_event.event_id,
+                    windows_event.provider,
+                    windows_event.host or "-",
+                    windows_event.username or "-",
+                    source,
+                    ",".join(tool_plan.tools),
+                    "; ".join(tool_plan.attack_hypotheses) or "-",
+                    ",".join(tool_plan.mitre_attack) or "-",
+                    "; ".join(tool_plan.behavioral_indicators),
+                )
+                audit.record(
+                    "tool_plan_selected",
+                    event_id=windows_event.event_id,
+                    provider=windows_event.provider,
+                    selected_tools=list(tool_plan.tools),
+                    attack_hypotheses=list(tool_plan.attack_hypotheses),
+                    mitre_attack=list(tool_plan.mitre_attack),
+                    behavioral_indicators=list(tool_plan.behavioral_indicators),
+                    requires_approval=tool_plan.requires_approval,
+                )
+            if windows_event.event_id != 4625:
+                _handle_windows_event(
+                    windows_event,
+                    correlator=correlator,
+                    audit=audit,
+                    ai_client=ai_client,
+                )
+                continue
+            event = parse_windows_event(line)
+        else:
+            event = parse_auth_line(line)
         if event is None:
             continue
+        if windows_event is not None and event.failed:
+            source_network = mask_ip(event.source_ip)
+            logger.warning(
+                "Windows failed logon observed: source=%s user=%s event_id=4625 tools=%s hypotheses=%s mitre=%s",
+                source_network,
+                event.username,
+                ",".join(tool_plan.tools),
+                "; ".join(tool_plan.attack_hypotheses) or "-",
+                ",".join(tool_plan.mitre_attack) or "-",
+            )
+            audit.record(
+                "windows_failed_logon_observed",
+                source_network=source_network,
+                username=event.username,
+                event_id=4625,
+            )
         candidate = aggregator.add(event)
         if candidate is not None:
             _handle_candidate(
@@ -98,6 +260,7 @@ def run(config: AppConfig, *, dry_run_override: bool = False) -> None:
                 blocker=blocker,
                 audit=audit,
                 notifier=notifier,
+                ai_client=ai_client,
             )
 
 

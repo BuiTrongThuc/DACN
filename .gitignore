@@ -9,3 +9,5 @@ htmlcov/
 config/config.yaml
 *.log
 *.jsonl.tmp
+globalban-audit.jsonl
+globalban-baseline.json

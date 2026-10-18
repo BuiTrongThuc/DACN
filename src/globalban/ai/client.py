@@ -8,8 +8,18 @@ from urllib.request import Request, urlopen
 
 from globalban.ai.schemas import AIExplanation, parse_explanation
 from globalban.models.decisions import BanCandidate
-from globalban.privacy.egress_check import validate_ai_payload
-from globalban.privacy.payload_builder import build_ai_payload
+from globalban.models.events import WindowsEvent
+from globalban.detection.sequence import RiskCandidate
+from globalban.privacy.egress_check import (
+    validate_ai_payload,
+    validate_risk_payload,
+    validate_windows_payload,
+)
+from globalban.privacy.payload_builder import (
+    build_ai_payload,
+    build_risk_payload,
+    build_windows_event_payload,
+)
 
 
 class AIClient:
@@ -35,6 +45,19 @@ class AIClient:
     def explain(self, candidate: BanCandidate) -> AIExplanation:
         payload = build_ai_payload(candidate)
         validate_ai_payload(payload)
+        return self._explain_payload(payload)
+
+    def explain_windows_event(self, event: WindowsEvent) -> AIExplanation:
+        payload = build_windows_event_payload(event)
+        validate_windows_payload(payload)
+        return self._explain_payload(payload)
+
+    def explain_risk(self, candidate: RiskCandidate) -> AIExplanation:
+        payload = build_risk_payload(candidate)
+        validate_risk_payload(payload)
+        return self._explain_payload(payload)
+
+    def _explain_payload(self, payload: dict[str, object]) -> AIExplanation:
         prompt = Path(__file__).with_name("prompt.txt").read_text(encoding="utf-8")
         body = json.dumps(
             {

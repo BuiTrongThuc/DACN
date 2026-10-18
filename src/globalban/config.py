@@ -11,12 +11,22 @@ import yaml
 class IngestionConfig:
     log_path: str = "/var/log/auth.log"
     poll_interval_seconds: float = 1.0
+    source: str = "file"
+    log_names: tuple[str, ...] = (
+        "Security",
+        "System",
+        "Microsoft-Windows-PowerShell/Operational",
+        "Microsoft-Windows-Sysmon/Operational",
+        "Microsoft-Windows-Windows Defender/Operational",
+    )
 
 
 @dataclass(frozen=True, slots=True)
 class DetectionConfig:
     window_seconds: int = 300
     failed_attempt_threshold: int = 5
+    baseline_path: str | None = "globalban-baseline.json"
+    baseline_warmup_events: int = 20
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +40,9 @@ class ActionsConfig:
     dry_run: bool = True
     firewall_command: tuple[str, ...] = (
         "iptables", "-I", "INPUT", "-s", "{ip}", "-j", "DROP"
+    )
+    rollback_command: tuple[str, ...] = (
+        "iptables", "-D", "INPUT", "-s", "{ip}", "-j", "DROP"
     )
 
 
@@ -87,10 +100,30 @@ def load_config(path: str | Path) -> AppConfig:
         ingestion=IngestionConfig(
             log_path=str(ingestion.get("log_path", "/var/log/auth.log")),
             poll_interval_seconds=float(ingestion.get("poll_interval_seconds", 1.0)),
+            source=str(ingestion.get("source", "file")),
+            log_names=_string_tuple(
+                ingestion.get(
+                    "log_names",
+                    (
+                        "Security",
+                        "System",
+                        "Microsoft-Windows-PowerShell/Operational",
+                        "Microsoft-Windows-Sysmon/Operational",
+                        "Microsoft-Windows-Windows Defender/Operational",
+                    ),
+                ),
+                "ingestion.log_names",
+            ),
         ),
         detection=DetectionConfig(
             window_seconds=int(detection.get("window_seconds", 300)),
             failed_attempt_threshold=int(detection.get("failed_attempt_threshold", 5)),
+            baseline_path=(
+                str(detection["baseline_path"])
+                if detection.get("baseline_path")
+                else None
+            ),
+            baseline_warmup_events=int(detection.get("baseline_warmup_events", 20)),
         ),
         policy=PolicyConfig(
             allowlist=tuple(policy.get("allowlist", ("127.0.0.1", "::1"))),
@@ -105,6 +138,13 @@ def load_config(path: str | Path) -> AppConfig:
                 ),
                 "actions.firewall_command",
             ),
+            rollback_command=_string_tuple(
+                actions.get(
+                    "rollback_command",
+                    ("iptables", "-D", "INPUT", "-s", "{ip}", "-j", "DROP"),
+                ),
+                "actions.rollback_command",
+            ),
         ),
         audit=AuditConfig(path=str(audit.get("path", "globalban-audit.jsonl"))),
         ai=AIConfig(
@@ -118,10 +158,14 @@ def load_config(path: str | Path) -> AppConfig:
     )
     if config.ingestion.poll_interval_seconds <= 0:
         raise ValueError("ingestion.poll_interval_seconds must be greater than zero")
+    if config.ingestion.source not in {"file", "windows_event_log"}:
+        raise ValueError("ingestion.source must be 'file' or 'windows_event_log'")
     if config.detection.window_seconds <= 0:
         raise ValueError("detection.window_seconds must be greater than zero")
     if config.detection.failed_attempt_threshold <= 0:
         raise ValueError("detection.failed_attempt_threshold must be greater than zero")
+    if config.detection.baseline_warmup_events <= 0:
+        raise ValueError("detection.baseline_warmup_events must be greater than zero")
     if not config.actions.firewall_command:
         raise ValueError("actions.firewall_command cannot be empty")
     return config
