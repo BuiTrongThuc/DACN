@@ -22,6 +22,7 @@ foreach ($log in $logs) {{
             Where-Object {{ $_.TimeCreated -ge $start }} |
             ForEach-Object {{ [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($_.ToXml())) }}
     }} catch {{
+        [Console]::Error.WriteLine("GlobalBan channel unavailable: $log - $($_.Exception.Message)")
         continue
     }}
 }}
@@ -62,6 +63,9 @@ def read_windows_events(
             result.returncode,
             detail or "channel unavailable; continuing with available channels",
         )
+    for error_line in result.stderr.splitlines():
+        if error_line.strip():
+            logger.warning(error_line.strip())
     records: list[str] = []
     for line in result.stdout.splitlines():
         try:
@@ -79,8 +83,18 @@ def follow_windows_events(
         raise ValueError("lookback_seconds must be greater than zero")
     seen: set[str] = set()
     seen_order: deque[str] = deque()
+    warned_no_events = False
     while True:
         records = read_windows_events(log_names, lookback_seconds=lookback_seconds)
+        if not records and not warned_no_events:
+            logger.warning(
+                "No Windows events received in the last %d seconds; "
+                "verify that the attack creates events on this machine",
+                lookback_seconds,
+            )
+            warned_no_events = True
+        elif records:
+            warned_no_events = False
         logger.debug("Windows Event Log poll completed: %d new record(s)", len(records))
         for record in records:
             fingerprint = hashlib.sha256(record.encode("utf-8")).hexdigest()

@@ -52,7 +52,20 @@ def _handle_windows_event(
         behavioral_indicators=list(tool_plan.behavioral_indicators),
         requires_approval=tool_plan.requires_approval,
     )
+    logger.warning(
+        "Threat recorded: Windows risk score=%d event_ids=%s reasons=%s",
+        candidate.score,
+        ",".join(str(event_id) for event_id in candidate.event_ids),
+        "; ".join(candidate.reasons),
+    )
     if ai_client is None:
+        logger.info("AI agent: advisory disabled; threat recorded for audit only")
+        audit.record(
+            "ai_agent_action",
+            action="disabled",
+            result="threat recorded for audit only",
+            event_ids=list(candidate.event_ids),
+        )
         return
     try:
         explanation = ai_client.explain_risk(candidate)
@@ -64,6 +77,12 @@ def _handle_windows_event(
         candidate.score,
         explanation.severity,
         explanation.summary,
+    )
+    logger.info(
+        "AI agent processed Windows risk: severity=%s confidence=%.2f recommendations=%s",
+        explanation.severity,
+        explanation.confidence,
+        "; ".join(explanation.recommended_actions) or "none",
     )
     audit.record(
         "windows_ai_assessment",
@@ -93,6 +112,7 @@ def _handle_candidate(
     decision = policy.evaluate(candidate)
     if not decision.allowed:
         logger.info("Skipped %s: %s", mask_ip(candidate.source_ip), decision.reason)
+        logger.info("Policy handled candidate: rejected before firewall action")
         audit.record(
             "candidate_rejected",
             source_network=mask_ip(candidate.source_ip),
@@ -109,6 +129,8 @@ def _handle_candidate(
             logger.info("AI assessment (%s): %s", explanation.severity, explanation.summary)
         except (RuntimeError, ValueError) as exc:
             logger.warning("AI assessment unavailable: %s", exc)
+    else:
+        logger.info("AI agent: advisory disabled; action handled by policy and dry-run enforcer")
     logger.warning(
         "%s %s after %d failed attempts (%s)",
         "Would block" if not result.blocked else "Blocked",
@@ -195,6 +217,12 @@ def run(config: AppConfig, *, dry_run_override: bool = False) -> None:
     for line in records:
         windows_event = parse_windows_security_event(line)
         if windows_event is not None:
+            logger.info(
+                "Windows event observed: id=%d provider=%s host=%s",
+                windows_event.event_id,
+                windows_event.provider,
+                windows_event.host or "-",
+            )
             tool_plan = choose_tools((windows_event,))
             if (
                 windows_event.event_id in _HIGH_SIGNAL_EVENT_IDS
