@@ -40,7 +40,7 @@ class IPBlocker:
             return BlockResult(False, command, "dry-run: firewall command not executed")
 
         completed = subprocess.run(
-            command,
+            list(command),
             check=True,
             capture_output=True,
             text=True,
@@ -60,7 +60,7 @@ class IPBlocker:
         if self._dry_run:
             return BlockResult(False, command, "dry-run: rollback command not executed")
         completed = subprocess.run(
-            command,
+            list(command),
             check=True,
             capture_output=True,
             text=True,

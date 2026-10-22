@@ -10,8 +10,8 @@ IPAddress: TypeAlias = IPv4Address | IPv6Address
 
 @dataclass(frozen=True, slots=True)
 class AuthEvent:
-    timestamp: datetime
     source_ip: IPAddress
+    timestamp: datetime
     username: str
     event_type: str
     raw: str = ""

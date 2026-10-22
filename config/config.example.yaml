@@ -15,6 +15,7 @@ detection:
   failed_attempt_threshold: 5
   baseline_path: globalban-baseline.json
   baseline_warmup_events: 20
+  behavior_state_path: globalban-behavior-state.json
 
 policy:
   allowlist:
@@ -48,7 +49,9 @@ audit:
 
 ai:
   enabled: true
-  base_url: http://192.168.52.131:8080/v1
+  # Direct external API endpoint; do not replace with localhost unless you
+  # intentionally operate a separate local gateway.
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai
   model: gemini-2.5-flash
 
 notifications:

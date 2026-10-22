@@ -108,7 +108,17 @@ baseline stored in `globalban-baseline.json`; it is not a trained ML model and
 the project does not claim precision, recall, or F1 results without labelled
 data.
 
-The AI receives normalized, allowlisted evidence only. It returns severity,
+Windows authentication events also use a persistent 24-hour behavior detector.
+It covers fast brute force, slow-and-low attempts, periodic automation, password
+spraying, nonexistent-user enumeration, distributed attacks against one user,
+and successful login after repeated failures. Results are emitted as the same
+explainable risk candidates used by the existing policy and audit pipeline.
+The state file is configured by `detection.behavior_state_path`. The detector
+does not bypass the allowlist, dry-run mode, or firewall action adapter.
+
+The AI receives normalized, allowlisted evidence only. It is called directly
+using the configured external `ai.base_url`; the application does not require
+or silently substitute a localhost API gateway. It returns severity,
 confidence, evidence, hypotheses, optional MITRE ATT&CK references, missing
 data, and human-reviewed recommendations. It cannot execute commands, change
 firewall policy, or decide to block an address.

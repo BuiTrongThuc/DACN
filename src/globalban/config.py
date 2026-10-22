@@ -27,6 +27,7 @@ class DetectionConfig:
     failed_attempt_threshold: int = 5
     baseline_path: str | None = "globalban-baseline.json"
     baseline_warmup_events: int = 20
+    behavior_state_path: str | None = "globalban-behavior-state.json"
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,6 +125,11 @@ def load_config(path: str | Path) -> AppConfig:
                 else None
             ),
             baseline_warmup_events=int(detection.get("baseline_warmup_events", 20)),
+            behavior_state_path=(
+                str(detection["behavior_state_path"])
+                if detection.get("behavior_state_path")
+                else None
+            ),
         ),
         policy=PolicyConfig(
             allowlist=tuple(policy.get("allowlist", ("127.0.0.1", "::1"))),

@@ -1,6 +1,7 @@
 """Small Windows desktop dashboard for the GlobalBan monitor."""
 
 import queue
+import re
 import subprocess
 import sys
 import threading
@@ -8,6 +9,7 @@ import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
+from collections import Counter
 
 import yaml
 
@@ -22,8 +24,8 @@ class GlobalBanApp:
         self._status_detail: str | None = None
         self._text_vars: dict[str, tk.StringVar] = {}
         self._root.title(self._translate("window_title"))
-        self._root.geometry("920x620")
-        self._root.minsize(760, 480)
+        self._root.geometry("1180x760")
+        self._root.minsize(900, 600)
         self._process: subprocess.Popen[str] | None = None
         self._output_queue: queue.Queue[str] = queue.Queue()
         self._log_lines: list[str] = []
@@ -32,16 +34,48 @@ class GlobalBanApp:
         self._config_path = tk.StringVar(value="config/config.yaml")
         self._ai_enabled = tk.BooleanVar(value=False)
         self._ai_model = tk.StringVar(value="gemini-2.5-flash")
-        self._ai_base_url = tk.StringVar(value="http://192.168.52.131:8080/v1")
+        self._ai_base_url = tk.StringVar(
+            value="https://generativelanguage.googleapis.com/v1beta/openai"
+        )
         self._status = tk.StringVar(value="Đã dừng")
         self._ai_status = tk.StringVar(value=self._translate("ai_off"))
         self._alerts = tk.StringVar(value="0")
         self._events = tk.StringVar(value="0")
         self._log_filter = tk.StringVar()
         self._started_at: float | None = None
+        self._live_mode = tk.BooleanVar(value=False)
+        self._source_counts: Counter[str] = Counter()
+        self._event_rows: list[tuple[str, ...]] = []
         self._load_ai_settings()
         self._build_ui()
         self._root.after(200, self._drain_output)
+
+    def _toggle_live(self) -> None:
+        if self._live_mode.get() and not messagebox.askyesno(
+            "Xác nhận LIVE", "Bật LIVE có thể chặn IP trên Windows Firewall. Tiếp tục?",
+            icon="warning", parent=self._root,
+        ):
+            self._live_mode.set(False)
+
+    def _ingest_ui_event(self, line: str) -> None:
+        if "Windows event observed" not in line and "Windows failed logon observed" not in line and "Suspicious Windows event" not in line:
+            return
+        event_match = re.search(r"(?:id|event_id|event)=([0-9]+)", line, re.IGNORECASE)
+        source_match = re.search(r"(?:source|source_network)=([0-9a-fA-F:./-]+)", line)
+        user_match = re.search(r"user(?:name)?=([^ ]+)", line)
+        event_id = event_match.group(1) if event_match else "-"
+        source = source_match.group(1) if source_match else "-"
+        user = user_match.group(1) if user_match else "-"
+        severity = "ALERT" if "Suspicious" in line or "WARNING" in line else "EVENT"
+        self._source_counts[source] += 1
+        row = (time.strftime("%H:%M:%S"), event_id, source, user, severity, line[:120])
+        self._event_rows.append(row)
+        self._event_rows = self._event_rows[-100:]
+        for item in self._event_table.get_children():
+            self._event_table.delete(item)
+        for item in self._event_rows[-10:]:
+            self._event_table.insert("", "end", values=item)
+        self._top_sources.set(" | ".join(f"{ip}: {count}" for ip, count in self._source_counts.most_common(5)))
         self._root.protocol("WM_DELETE_WINDOW", self._close)
 
     _TEXT = {
@@ -338,6 +372,9 @@ class GlobalBanApp:
         tk.Button(config_row, textvariable=self._text("browse"), command=self._browse, bg=palette["panel_alt"], fg=palette["text"], activebackground=palette["line"], activeforeground=palette["text"], relief="flat", padx=12).pack(side="left")
         tk.Button(config_row, textvariable=self._text("ai_management"), command=self._open_ai_settings, bg=palette["cyan"], fg="#071417", activebackground="#82e6e2", relief="flat", padx=12).pack(side="left", padx=(8, 0))
         tk.Label(config_row, textvariable=self._ai_status, fg=palette["cyan"], bg=palette["panel"], font=("Segoe UI", 8, "bold")).pack(side="left", padx=(10, 0))
+        tk.Checkbutton(config_row, text="LIVE / Firewall thật", variable=self._live_mode, command=self._toggle_live,
+                       fg=palette["red"], bg=palette["panel"], selectcolor=palette["panel_alt"],
+                       activebackground=palette["panel"], activeforeground=palette["red"]).pack(side="right", padx=(8, 0))
         tk.Label(config_row, textvariable=self._text("dry_run"), fg=palette["muted"], bg=palette["panel"], font=("Segoe UI", 9)).pack(side="right", padx=(8, 0))
         tk.Label(config_row, textvariable=self._text("enabled"), fg=palette["green"], bg=palette["panel"], font=("Segoe UI", 8, "bold")).pack(side="right")
 
@@ -368,6 +405,23 @@ class GlobalBanApp:
         self._log.tag_configure("warning", foreground=palette["red"])
         self._log.tag_configure("event", foreground=palette["cyan"])
         self._log.tag_configure("normal", foreground="#b6c8cf")
+        table_frame = tk.Frame(body, bg=palette["panel"])
+        table_frame.pack(fill="x", pady=(12, 0))
+        tk.Label(table_frame, text="SỰ KIỆN GẦN NHẤT / RECENT EVENTS", fg=palette["muted"], bg=palette["panel"],
+                 font=("Segoe UI", 8, "bold")).pack(anchor="w", pady=(0, 5))
+        columns = ("time", "event", "source", "user", "severity", "details")
+        self._event_table = ttk.Treeview(table_frame, columns=columns, show="headings", height=6)
+        headings = {"time": "Time", "event": "Event ID", "source": "Source IP", "user": "User",
+                    "severity": "Severity", "details": "Details"}
+        widths = {"time": 72, "event": 70, "source": 130, "user": 120, "severity": 85, "details": 430}
+        for column in columns:
+            self._event_table.heading(column, text=headings[column])
+            self._event_table.column(column, width=widths[column], anchor="w")
+        self._event_table.pack(fill="x")
+        tk.Label(table_frame, text="Top nguồn: ", fg=palette["muted"], bg=palette["panel"]).pack(anchor="w", pady=(5, 0))
+        self._top_sources = tk.StringVar(value="Chưa có dữ liệu")
+        tk.Label(table_frame, textvariable=self._top_sources, fg=palette["amber"], bg=palette["panel"],
+                 font=("Consolas", 9)).pack(anchor="w")
 
     def _nav_item(self, parent: tk.Frame, number: str, key: str, *, active: bool = False) -> None:
         color = self._palette["cyan"] if active else self._palette["muted"]
@@ -507,9 +561,19 @@ class GlobalBanApp:
         except (OSError, ValueError, yaml.YAMLError) as exc:
             messagebox.showerror(self._translate("config_invalid"), str(exc))
             return
+        if self._live_mode.get() and not messagebox.askyesno(
+            "Xác nhận LIVE",
+            "LIVE sẽ có thể thay đổi Windows Firewall và cần quyền Administrator. Tiếp tục?",
+            icon="warning",
+            parent=self._root,
+        ):
+            self._live_mode.set(False)
+            return
         try:
+            command = [sys.executable, "-m", "globalban.main", "--config", str(config)]
+            command.append("--live" if self._live_mode.get() else "--dry-run")
             self._process = subprocess.Popen(
-                [sys.executable, "-m", "globalban.main", "--config", str(config), "--dry-run"],
+                command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -544,6 +608,7 @@ class GlobalBanApp:
             while True:
                 line = self._output_queue.get_nowait()
                 self._log_lines.append(line)
+                self._ingest_ui_event(line)
                 self._event_count += int(
                     "Windows event observed" in line
                     or "Windows failed logon observed" in line

@@ -11,6 +11,7 @@ from globalban.audit.logger import AuditLogger
 from globalban.config import AppConfig, load_config
 from globalban.detection.aggregator import FailedAttemptAggregator
 from globalban.detection.baseline import BehaviorBaseline
+from globalban.detection.behavior import WindowsBehaviorDetector
 from globalban.detection.sequence import SequenceCorrelator
 from globalban.ingestion.parser import (
     parse_auth_line,
@@ -34,8 +35,11 @@ def _handle_windows_event(
     correlator: SequenceCorrelator,
     audit: AuditLogger,
     ai_client: AIClient | None,
+    blocker: IPBlocker,
+    policy: PolicyGuard,
+    risk_candidate=None,
 ) -> None:
-    candidate = correlator.add(event)
+    candidate = risk_candidate or correlator.add(event)
     if candidate is None:
         return
     tool_plan = choose_tools((event,), risk_score=candidate.score)
@@ -66,38 +70,50 @@ def _handle_windows_event(
             result="threat recorded for audit only",
             event_ids=list(candidate.event_ids),
         )
-        return
-    try:
-        explanation = ai_client.explain_risk(candidate)
-    except (RuntimeError, ValueError) as exc:
-        logger.warning("Windows AI assessment unavailable: %s", exc)
-        return
-    logger.warning(
-        "Windows behavior score %d assessed as %s: %s",
-        candidate.score,
-        explanation.severity,
-        explanation.summary,
-    )
-    logger.info(
-        "AI agent processed Windows risk: severity=%s confidence=%.2f recommendations=%s",
-        explanation.severity,
-        explanation.confidence,
-        "; ".join(explanation.recommended_actions) or "none",
-    )
-    audit.record(
-        "windows_ai_assessment",
-        event_ids=list(candidate.event_ids),
-        score=candidate.score,
-        reasons=list(candidate.reasons),
-        severity=explanation.severity,
-        summary=explanation.summary,
-        confidence=explanation.confidence,
-        evidence=list(explanation.evidence),
-        hypotheses=list(explanation.hypotheses),
-        mitre_attack=list(explanation.mitre_attack),
-        missing_data=list(explanation.missing_data),
-        recommended_actions=list(explanation.recommended_actions),
-    )
+    else:
+        try:
+            explanation = ai_client.explain_risk(candidate)
+        except (RuntimeError, ValueError) as exc:
+            logger.warning("Windows AI assessment unavailable: %s", exc)
+        else:
+            logger.warning(
+                "Windows behavior score %d assessed as %s: %s",
+                candidate.score,
+                explanation.severity,
+                explanation.summary,
+            )
+            logger.info(
+                "AI agent processed Windows risk: severity=%s confidence=%.2f recommendations=%s",
+                explanation.severity,
+                explanation.confidence,
+                "; ".join(explanation.recommended_actions) or "none",
+            )
+            audit.record(
+                "windows_ai_assessment",
+                event_ids=list(candidate.event_ids),
+                score=candidate.score,
+                reasons=list(candidate.reasons),
+                severity=explanation.severity,
+                summary=explanation.summary,
+                confidence=explanation.confidence,
+                evidence=list(explanation.evidence),
+                hypotheses=list(explanation.hypotheses),
+                mitre_attack=list(explanation.mitre_attack),
+                missing_data=list(explanation.missing_data),
+                recommended_actions=list(explanation.recommended_actions),
+            )
+    if candidate.source_ip is not None:
+        decision = policy.evaluate_address(candidate.source_ip)
+        if decision.allowed and candidate.score >= 100:
+            result = blocker.block(candidate.source_ip)
+            audit.record(
+                "windows_behavior_action",
+                source_network=mask_ip(candidate.source_ip),
+                score=candidate.score,
+                allowed=decision.allowed,
+                command=result.command,
+                result=result.message,
+            )
 
 
 def _handle_candidate(
@@ -165,11 +181,16 @@ def _handle_candidate(
         )
 
 
-def run(config: AppConfig, *, dry_run_override: bool = False) -> None:
+def run(
+    config: AppConfig,
+    *,
+    dry_run_override: bool = False,
+    live_override: bool = False,
+) -> None:
     blocker = IPBlocker(
         command_template=config.actions.firewall_command,
         rollback_command_template=config.actions.rollback_command,
-        dry_run=config.actions.dry_run or dry_run_override,
+        dry_run=False if live_override else (config.actions.dry_run or dry_run_override),
     )
     policy = PolicyGuard(
         allowlist=config.policy.allowlist,
@@ -187,6 +208,7 @@ def run(config: AppConfig, *, dry_run_override: bool = False) -> None:
         window_seconds=config.detection.window_seconds,
         baseline=baseline,
     )
+    behavior = WindowsBehaviorDetector(state_path=config.detection.behavior_state_path)
     audit = AuditLogger(config.audit.path)
     notifier = (
         WhatsAppNotifier()
@@ -252,18 +274,44 @@ def run(config: AppConfig, *, dry_run_override: bool = False) -> None:
                     requires_approval=tool_plan.requires_approval,
                 )
             if windows_event.event_id != 4625:
-                _handle_windows_event(
-                    windows_event,
-                    correlator=correlator,
-                    audit=audit,
-                    ai_client=ai_client,
-                )
+                behavior_candidate = behavior.add(windows_event)
+                if behavior_candidate is not None:
+                    _handle_windows_event(
+                        windows_event,
+                        correlator=correlator,
+                        audit=audit,
+                        ai_client=ai_client,
+                        blocker=blocker,
+                        policy=policy,
+                        risk_candidate=behavior_candidate,
+                    )
+                else:
+                    _handle_windows_event(
+                        windows_event,
+                        correlator=correlator,
+                        audit=audit,
+                        ai_client=ai_client,
+                        blocker=blocker,
+                        policy=policy,
+                    )
                 continue
             event = parse_windows_event(line)
         else:
             event = parse_auth_line(line)
         if event is None:
             continue
+        if windows_event is not None:
+            behavior_candidate = behavior.add(windows_event)
+            if behavior_candidate is not None:
+                _handle_windows_event(
+                    windows_event,
+                    correlator=correlator,
+                    audit=audit,
+                    ai_client=ai_client,
+                    blocker=blocker,
+                    policy=policy,
+                    risk_candidate=behavior_candidate,
+                )
         if windows_event is not None and event.failed:
             source_network = mask_ip(event.source_ip)
             logger.warning(
@@ -304,13 +352,18 @@ def main() -> None:
         action="store_true",
         help="Do not execute firewall commands, regardless of config",
     )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="Allow configured firewall actions (requires Administrator)",
+    )
     args = parser.parse_args()
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     config = load_config(args.config)
-    run(config, dry_run_override=args.dry_run)
+    run(config, dry_run_override=args.dry_run, live_override=args.live)
 
 
 if __name__ == "__main__":
