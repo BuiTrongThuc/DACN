@@ -24,6 +24,13 @@ def build_windows_event_payload(event: WindowsEvent) -> dict[str, object]:
         for name, value in event.fields.items()
         if name in {"TargetUserName", "SubjectUserName", "ServiceName", "TaskName"}
     }
+    return {
+        "event_id": event.event_id,
+        "event_type": event.event_type,
+        "priority": event.priority,
+        "provider": event.provider,
+        "fields": safe_fields,
+    }
 
 
 def build_risk_payload(candidate: RiskCandidate) -> dict[str, object]:
@@ -35,11 +42,4 @@ def build_risk_payload(candidate: RiskCandidate) -> dict[str, object]:
         "source_network": (
             mask_ip(candidate.source_ip) if candidate.source_ip is not None else None
         ),
-    }
-    return {
-        "event_id": event.event_id,
-        "event_type": event.event_type,
-        "priority": event.priority,
-        "provider": event.provider,
-        "fields": safe_fields,
     }

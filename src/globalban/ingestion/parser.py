@@ -94,10 +94,12 @@ def parse_windows_security_event(
         elif local_name == "Data" and element.attrib.get("Name") and element.text:
             name = element.attrib["Name"]
             if name in {
-                "TargetUserName", "SubjectUserName", "IpAddress", "CommandLine",
+                "TargetUserName", "SubjectUserName", "IpAddress", "SourceIp", "CommandLine",
                 "NewProcessName", "ParentImage", "ServiceName", "TaskName",
                 "ScriptBlockText", "Image", "DestinationIp", "TargetFilename",
                 "ProcessId", "ParentProcessId", "ParentProcessGuid", "ProcessGuid",
+                "SubStatus", "Status", "LogonType", "WorkstationName",
+                "ParentCommandLine", "ProcessName", "Threat Name", "Path",
             }:
                 fields[name] = element.text.strip()
     return WindowsEvent(

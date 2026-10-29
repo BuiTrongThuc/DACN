@@ -11,3 +11,5 @@ config/config.yaml
 *.jsonl.tmp
 globalban-audit.jsonl
 globalban-baseline.json
+globalban-behavior-state.json
+

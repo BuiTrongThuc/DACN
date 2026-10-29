@@ -48,6 +48,7 @@ class GlobalBanApp:
         self._event_rows: list[tuple[str, ...]] = []
         self._load_ai_settings()
         self._build_ui()
+        self._root.protocol("WM_DELETE_WINDOW", self._close)
         self._root.after(200, self._drain_output)
 
     def _toggle_live(self) -> None:
@@ -76,7 +77,6 @@ class GlobalBanApp:
         for item in self._event_rows[-10:]:
             self._event_table.insert("", "end", values=item)
         self._top_sources.set(" | ".join(f"{ip}: {count}" for ip, count in self._source_counts.most_common(5)))
-        self._root.protocol("WM_DELETE_WINDOW", self._close)
 
     _TEXT = {
         "vi": {
@@ -224,7 +224,12 @@ class GlobalBanApp:
 
     def _load_ai_settings(self) -> None:
         try:
-            data = yaml.safe_load(self._resolve_config_path().read_text(encoding="utf-8")) or {}
+            cfg_path = self._resolve_config_path()
+            if not cfg_path.exists():
+                example = cfg_path.parent / "config.example.yaml"
+                if example.exists():
+                    cfg_path = example
+            data = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
             ai = data.get("ai", {}) if isinstance(data, dict) else {}
             if isinstance(ai, dict):
                 self._ai_enabled.set(bool(ai.get("enabled", False)))
@@ -516,13 +521,21 @@ class GlobalBanApp:
             return
         config_path = self._resolve_config_path()
         try:
-            data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+            if not config_path.exists():
+                example = config_path.parent / "config.example.yaml"
+                if example.exists():
+                    data = yaml.safe_load(example.read_text(encoding="utf-8")) or {}
+                else:
+                    data = {}
+            else:
+                data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
             if not isinstance(data, dict):
                 raise ValueError("configuration root must be a mapping")
             ai = data.setdefault("ai", {})
             if not isinstance(ai, dict):
                 raise ValueError("ai configuration must be a mapping")
             ai.update({"enabled": self._ai_enabled.get(), "model": self._ai_model.get().strip(), "base_url": self._ai_base_url.get().strip()})
+            config_path.parent.mkdir(parents=True, exist_ok=True)
             config_path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
         except (OSError, ValueError, yaml.YAMLError) as exc:
             messagebox.showerror(self._translate("ai_management"), str(exc), parent=dialog)

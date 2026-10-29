@@ -1,10 +1,36 @@
-"""Configuration loading and validation."""
-
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+
+def load_dotenv(path: str | Path | None = None) -> None:
+    """Load key-value pairs from .env into os.environ if not already set."""
+    if path:
+        env_path = Path(path)
+    else:
+        env_path = Path(".env")
+        if not env_path.exists():
+            root_env = Path(__file__).resolve().parents[2] / ".env"
+            if root_env.exists():
+                env_path = root_env
+    if not env_path.exists():
+        return
+    try:
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip("'\"")
+        if key and key not in os.environ and value:
+            os.environ[key] = value
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +110,7 @@ def _section(data: dict[str, Any], name: str) -> dict[str, Any]:
 
 def load_config(path: str | Path) -> AppConfig:
     """Load YAML configuration, validating values rather than silently defaulting."""
+    load_dotenv()
     with Path(path).open("r", encoding="utf-8") as file:
         data = yaml.safe_load(file) or {}
     if not isinstance(data, dict):

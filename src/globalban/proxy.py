@@ -71,7 +71,8 @@ class EgressProxyHandler(BaseHTTPRequestHandler):
     server_version = "GlobalBanEgressProxy/1.0"
 
     def do_POST(self) -> None:
-        if self.path != "/v1/chat/completions":
+        path = self.path.split("?")[0].rstrip("/")
+        if path not in {"/v1/chat/completions", "/chat/completions"}:
             self.send_error(404, "endpoint is not allowlisted")
             return
         try:

@@ -210,16 +210,18 @@ def run(
     )
     behavior = WindowsBehaviorDetector(state_path=config.detection.behavior_state_path)
     audit = AuditLogger(config.audit.path)
-    notifier = (
-        WhatsAppNotifier()
-        if config.notifications.whatsapp_enabled
-        else None
-    )
-    ai_client = (
-        AIClient(base_url=config.ai.base_url, model=config.ai.model)
-        if config.ai.enabled
-        else None
-    )
+    notifier = None
+    if config.notifications.whatsapp_enabled:
+        try:
+            notifier = WhatsAppNotifier()
+        except ValueError as exc:
+            logger.warning("WhatsApp notifier enabled but unavailable: %s", exc)
+    ai_client = None
+    if config.ai.enabled:
+        try:
+            ai_client = AIClient(base_url=config.ai.base_url, model=config.ai.model)
+        except ValueError as exc:
+            logger.warning("AI advisory enabled but unavailable: %s", exc)
     if config.ingestion.source == "windows_event_log":
         logger.info("Polling Windows Event Log channels: %s", config.ingestion.log_names)
         records = follow_windows_events(
@@ -273,61 +275,49 @@ def run(
                     behavioral_indicators=list(tool_plan.behavioral_indicators),
                     requires_approval=tool_plan.requires_approval,
                 )
-            if windows_event.event_id != 4625:
-                behavior_candidate = behavior.add(windows_event)
-                if behavior_candidate is not None:
-                    _handle_windows_event(
-                        windows_event,
-                        correlator=correlator,
-                        audit=audit,
-                        ai_client=ai_client,
-                        blocker=blocker,
-                        policy=policy,
-                        risk_candidate=behavior_candidate,
+            behavior_candidate = behavior.add(windows_event)
+            _handle_windows_event(
+                windows_event,
+                correlator=correlator,
+                audit=audit,
+                ai_client=ai_client,
+                blocker=blocker,
+                policy=policy,
+                risk_candidate=behavior_candidate,
+            )
+            if windows_event.event_id == 4625:
+                event = parse_windows_event(line)
+                if event is not None and event.failed:
+                    source_network = mask_ip(event.source_ip)
+                    logger.warning(
+                        "Windows failed logon observed: source=%s user=%s event_id=4625 tools=%s hypotheses=%s mitre=%s",
+                        source_network,
+                        event.username,
+                        ",".join(tool_plan.tools),
+                        "; ".join(tool_plan.attack_hypotheses) or "-",
+                        ",".join(tool_plan.mitre_attack) or "-",
                     )
-                else:
-                    _handle_windows_event(
-                        windows_event,
-                        correlator=correlator,
-                        audit=audit,
-                        ai_client=ai_client,
-                        blocker=blocker,
-                        policy=policy,
+                    audit.record(
+                        "windows_failed_logon_observed",
+                        source_network=source_network,
+                        username=event.username,
+                        event_id=4625,
                     )
-                continue
-            event = parse_windows_event(line)
-        else:
-            event = parse_auth_line(line)
+                    candidate = aggregator.add(event)
+                    if candidate is not None:
+                        _handle_candidate(
+                            candidate,
+                            policy=policy,
+                            blocker=blocker,
+                            audit=audit,
+                            notifier=notifier,
+                            ai_client=ai_client,
+                        )
+            continue
+
+        event = parse_auth_line(line)
         if event is None:
             continue
-        if windows_event is not None:
-            behavior_candidate = behavior.add(windows_event)
-            if behavior_candidate is not None:
-                _handle_windows_event(
-                    windows_event,
-                    correlator=correlator,
-                    audit=audit,
-                    ai_client=ai_client,
-                    blocker=blocker,
-                    policy=policy,
-                    risk_candidate=behavior_candidate,
-                )
-        if windows_event is not None and event.failed:
-            source_network = mask_ip(event.source_ip)
-            logger.warning(
-                "Windows failed logon observed: source=%s user=%s event_id=4625 tools=%s hypotheses=%s mitre=%s",
-                source_network,
-                event.username,
-                ",".join(tool_plan.tools),
-                "; ".join(tool_plan.attack_hypotheses) or "-",
-                ",".join(tool_plan.mitre_attack) or "-",
-            )
-            audit.record(
-                "windows_failed_logon_observed",
-                source_network=source_network,
-                username=event.username,
-                event_id=4625,
-            )
         candidate = aggregator.add(event)
         if candidate is not None:
             _handle_candidate(
