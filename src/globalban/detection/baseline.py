@@ -16,9 +16,18 @@ class BehaviorBaseline:
         self._total = 0
         self._counts: Counter[str] = Counter()
         if self._path and self._path.exists():
-            data = json.loads(self._path.read_text(encoding="utf-8"))
-            self._total = int(data.get("total", 0))
-            self._counts.update(data.get("counts", {}))
+            try:
+                data = json.loads(self._path.read_text(encoding="utf-8"))
+                if not isinstance(data, dict):
+                    raise ValueError("baseline must be a JSON object")
+                self._total = int(data.get("total", 0))
+                counts = data.get("counts", {})
+                if not isinstance(counts, dict):
+                    raise ValueError("baseline counts must be a JSON object")
+                self._counts.update(counts)
+            except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                self._total = 0
+                self._counts.clear()
 
     def observe(self, event: WindowsEvent) -> tuple[int, str | None]:
         key = self._key(event)

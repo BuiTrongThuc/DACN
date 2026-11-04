@@ -19,3 +19,21 @@ permission before redistributing or committing raw logs.
 
 Do not add real authentication logs to version control. Such logs can contain
 usernames, hostnames, and network identifiers.
+
+## Optional AI knowledge sources
+
+The repository can use two independent, locally downloaded sources when the AI
+advisory is enabled:
+
+- `..\AD-GEN\`: ATT&CK-aligned endpoint narratives.
+- `WinLOLBIN-GT-dataset\`: labelled Windows LOLBin behaviour features.
+
+The AI client indexes only a bounded local sample from each source and keeps
+their labels separate. It adds matching records as references to an advisory;
+it does not treat either dataset as ground truth and does not send the full
+datasets to the API. Override the default locations with
+`GLOBALBAN_ADGEN_PATH` and `GLOBALBAN_LOLBIN_DATASET_PATH`.
+
+WinLOLBIN-GT's large CSV payload is distributed through its Zenodo release,
+not the Git repository. Download it separately and place the processed CSV
+under `WinLOLBIN-GT-dataset\` before expecting matches.

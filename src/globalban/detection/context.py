@@ -2,7 +2,7 @@
 
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from globalban.detection.process_monitor import ProcessObservation
 from globalban.models.events import WindowsEvent

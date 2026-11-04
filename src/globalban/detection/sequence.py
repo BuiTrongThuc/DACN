@@ -35,15 +35,27 @@ class SequenceCorrelator:
         self._baseline = baseline
         self._events: dict[tuple[str, str], deque[WindowsEvent]] = {}
         self._fingerprints: set[tuple[str, int, str, datetime]] = set()
+        self._latest_timestamp: datetime | None = None
 
     def add(self, event: WindowsEvent) -> RiskCandidate | None:
         fingerprint = (event.provider, event.event_id, event.process_id or "", event.timestamp)
         if fingerprint in self._fingerprints:
             return None
         self._fingerprints.add(fingerprint)
+        if self._latest_timestamp is None or event.timestamp > self._latest_timestamp:
+            self._latest_timestamp = event.timestamp
+        global_cutoff = self._latest_timestamp - self._window
+        self._fingerprints = {
+            item for item in self._fingerprints if item[3] >= global_cutoff
+        }
+        for bucket_key, bucket in list(self._events.items()):
+            while bucket and bucket[0].timestamp < global_cutoff:
+                bucket.popleft()
+            if not bucket:
+                del self._events[bucket_key]
         key = (event.host or "<unknown-host>", event.username or "<unknown>")
         events = self._events.setdefault(key, deque())
-        cutoff = event.timestamp - self._window
+        cutoff = global_cutoff
         while events and events[0].timestamp < cutoff:
             events.popleft()
         events.append(event)

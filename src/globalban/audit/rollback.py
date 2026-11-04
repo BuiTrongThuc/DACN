@@ -34,8 +34,11 @@ class RollbackManager:
     def rollback(self, address: IPAddress, *, approved: bool = False) -> BlockResult:
         if not approved:
             raise PermissionError("explicit approval is required for rollback")
-        if str(address) not in self._records:
+        record = self._records.get(str(address))
+        if record is None:
             raise KeyError(f"no action record for {address}")
+        if record.expires_at <= datetime.now(timezone.utc):
+            raise PermissionError(f"rollback TTL expired for {address}")
         return self._blocker.rollback(address)
 
     def expired(self, *, now: datetime | None = None) -> tuple[ActionRecord, ...]:

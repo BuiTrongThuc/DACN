@@ -1,0 +1,47 @@
+ingestion:
+  log_path: /var/log/auth.log
+  poll_interval_seconds: 1.0
+  source: windows_event_log
+  log_names:
+  - Security
+  - System
+  - Microsoft-Windows-PowerShell/Operational
+  - Microsoft-Windows-Sysmon/Operational
+  - Microsoft-Windows-Windows Defender/Operational
+detection:
+  window_seconds: 300
+  failed_attempt_threshold: 5
+  baseline_path: globalban-baseline.json
+  baseline_warmup_events: 20
+  behavior_state_path: globalban-behavior-state.json
+policy:
+  allowlist:
+  - 127.0.0.1
+  - ::1
+  block_private_addresses: true
+actions:
+  dry_run: true
+  firewall_command:
+  - iptables
+  - -I
+  - INPUT
+  - -s
+  - '{ip}'
+  - -j
+  - DROP
+  rollback_command:
+  - iptables
+  - -D
+  - INPUT
+  - -s
+  - '{ip}'
+  - -j
+  - DROP
+audit:
+  path: globalban-audit.jsonl
+ai:
+  enabled: true
+  base_url: http://127.0.0.1:8080/v1
+  model: gemini-2.5-flash
+notifications:
+  whatsapp_enabled: false

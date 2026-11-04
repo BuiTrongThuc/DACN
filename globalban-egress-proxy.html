@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GlobalBan | Giám sát hành vi Windows</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#070b12; --side:#0b111b; --panel:#0c131e; --line:#1a2535; --field:#101926;
+  --text:#e8eef7; --muted:#8392a8; --faint:#56657b;
+  --blue:#3b9bff; --green:#2fd68c; --pink:#ff6b81; --amber:#f2b84b;
+  --f-head:"Barlow Semi Condensed","Arial Narrow",sans-serif;
+  --f-body:"Barlow","Segoe UI",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark}}
+:root[data-theme="dark"]{color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--text);font:400 15px/1.45 var(--f-body)}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:272px 1fr;min-height:100%}
+aside{background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:28px 12px 16px}
+.brand{display:flex;gap:14px;align-items:center;padding:0 12px 34px}
+.brand svg{width:26px;height:26px;flex:none}
+.brand b{display:block;font:700 22px/1 var(--f-head);letter-spacing:.04em}
+.brand small{display:block;margin-top:5px;font:500 11px var(--f-head);letter-spacing:.06em;color:var(--muted)}
+.group{font:600 15px var(--f-head);padding:0 12px 14px;margin-top:6px}
+.cap{font:500 10px var(--f-mono);color:var(--faint);letter-spacing:.08em;padding:0 12px 10px}
+nav{display:flex;flex-direction:column;gap:6px;margin-bottom:22px}
+nav button{display:flex;align-items:center;gap:14px;text-align:left;background:none;border:1px solid transparent;border-left:3px solid transparent;color:var(--text);padding:13px 14px;cursor:pointer;font-size:15px}
+nav button i{font:500 11px var(--f-mono);font-style:normal;color:var(--muted);width:22px}
+nav button:hover{background:#0f1826}
+nav button[aria-current="page"]{background:#102338;border-color:#1b3a5c;border-left-color:var(--blue)}
+nav button[aria-current="page"] i{color:var(--blue)}
+.ready{margin-top:auto;display:flex;gap:10px;align-items:center;background:#0c2a22;border:1px solid #14503f;color:var(--green);padding:14px;font:600 14px var(--f-head);letter-spacing:.03em}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+
+main{padding:56px 48px 40px;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.eyebrow{font:500 12px var(--f-mono);color:var(--blue);letter-spacing:.06em}
+h1{font:700 40px/1.1 var(--f-head);margin:14px 0 8px;letter-spacing:.01em}
+.sub{color:var(--muted)}
+.badge{font:600 14px var(--f-head);padding:9px 18px;border:1px solid var(--line);background:#101722;color:var(--muted);white-space:nowrap}
+.badge.on{background:#0c2a22;border-color:#14503f;color:var(--green)}
+
+.stats{display:grid;grid-template-columns:1.6fr 1.45fr 1.4fr;gap:14px;margin:34px 0 22px}
+.stat,.card{background:var(--panel);border:1px solid var(--line)}
+.stat{padding:18px 22px}
+.stat small{display:block;font:500 10px var(--f-mono);color:var(--muted);letter-spacing:.08em;margin-bottom:8px}
+.stat b{font:600 19px var(--f-head);letter-spacing:.02em}
+.c-blue{color:var(--blue)}.c-green{color:var(--green)}.c-amber{color:var(--amber)}
+
+.card{padding:26px 26px 22px;margin-bottom:22px}
+.card h2{font:600 15px var(--f-head);letter-spacing:.03em;color:#c3cddb;margin-bottom:18px}
+.fields{display:grid;grid-template-columns:150px 76px 1fr;gap:12px}
+label{display:block;font:500 14px var(--f-head);color:var(--muted);margin-bottom:8px}
+input{width:100%;background:var(--field);border:1px solid transparent;padding:11px 8px;font-size:15px}
+input:focus{border-color:var(--blue);outline:none}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:20px}
+.actions p{margin-left:auto;font-size:14px;color:var(--muted)}
+.btn{border:0;padding:15px 25px;font:600 16px var(--f-head);cursor:pointer;letter-spacing:.01em;transition:filter .15s,opacity .15s}
+.btn:hover:not(:disabled){filter:brightness(1.1)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.b-green{background:var(--green);color:#04251a}
+.b-pink{background:var(--pink);color:#3a0a14}
+.b-blue{background:var(--blue);color:#04182e}
+
+.term-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.term-head h2{margin:0;display:flex;align-items:center;gap:12px;color:var(--text);letter-spacing:.01em}
+.term-head h2 .dot{color:var(--green)}
+.term-head h2 .dot.off{color:var(--faint)}
+.term-head span{font:400 12px var(--f-mono);color:var(--muted)}
+#log{background:#050810;height:400px;overflow:auto;padding:14px 16px;font:400 13px/1.7 var(--f-mono);color:#b7c4d6}
+#log .t{color:var(--faint)}#log .ok{color:var(--green)}#log .warn{color:var(--amber)}#log .err{color:var(--pink)}
+#log .empty{color:var(--faint)}
+.view{display:none}.view.show{display:block}
+.empty-card{padding:60px 26px;text-align:center;color:var(--muted)}
+.empty-card b{display:block;font:600 20px var(--f-head);color:var(--text);margin-bottom:6px}
+
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  aside{flex-direction:row;flex-wrap:wrap;padding:14px;border-right:0;border-bottom:1px solid var(--line);gap:8px}
+  .brand{padding:0 8px 0 0}.group,.cap,.ready{display:none}
+  nav{flex-direction:row;overflow-x:auto;margin:0;flex:1 1 100%}
+  nav button{white-space:nowrap;padding:10px 12px}
+  main{padding:28px 18px}
+  .stats{grid-template-columns:1fr}
+  .fields{grid-template-columns:1fr 90px}.fields>div:last-child{grid-column:1/-1}
+  .actions p{margin-left:0;width:100%}
+  h1{font-size:32px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">
+      <svg viewBox="0 0 26 26" fill="none" stroke="#3b9bff" stroke-width="2.2" aria-hidden="true"><path d="M13 2 24 13 13 24 2 13Z"/><circle cx="13" cy="13" r="3.4" fill="#3b9bff" stroke="none"/></svg>
+      <div><b>GLOBALBAN</b><small>SECURITY CONSOLE</small></div>
+    </div>
+    <div class="group">BẢNG ĐIỀU KHIỂN</div>
+    <div class="cap">WORKSPACE</div>
+    <nav aria-label="Workspace">
+      <button data-view="monitor"><i>01</i>Giám sát</button>
+    </nav>
+    <div class="cap">DỮ LIỆU &amp; KIỂM SOÁT</div>
+    <nav aria-label="Dữ liệu và kiểm soát">
+      <button data-view="activity"><i>02</i>Dữ liệu hoạt động</button>
+      <button data-view="audit"><i>03</i>Nhật ký kiểm tra</button>
+      <button data-view="proxy" aria-current="page"><i>04</i>Proxy egress</button>
+    </nav>
+    <div class="ready"><span class="dot"></span>HỆ THỐNG SẴN SÀNG</div>
+  </aside>
+
+  <main>
+    <div id="proxyView" class="view show">
+      <div class="top">
+        <div>
+          <div class="eyebrow">PROXY CONTROL CENTER</div>
+          <h1>Egress Proxy</h1>
+          <p class="sub">Kiểm soát luồng AI outbound qua privacy allowlist</p>
+        </div>
+        <div class="badge" id="badge" role="status">Đã tắt</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><small>LISTEN MODE</small><b class="c-blue">Local process</b></div>
+        <div class="stat"><small>PRIVACY GATE</small><b class="c-green">Allowlisted only</b></div>
+        <div class="stat"><small>UPSTREAM</small><b class="c-amber">AI API relay</b></div>
+      </div>
+
+      <section class="card">
+        <h2>CẤU HÌNH KẾT NỐI</h2>
+        <div class="fields">
+          <div><label for="host">Bind host</label><input id="host" value="127.0.0.1" spellcheck="false"></div>
+          <div><label for="port">Port</label><input id="port" value="8080" inputmode="numeric"></div>
+          <div><label for="up">Upstream</label><input id="up" value="https://generativelanguage.googleapis.com/v1beta/openai" spellcheck="false"></div>
+        </div>
+        <div class="actions">
+          <button class="btn b-green" id="start">Bật proxy</button>
+          <button class="btn b-pink" id="stop" disabled>Tắt proxy</button>
+          <button class="btn b-blue" id="use">Dùng proxy cho AI</button>
+          <p>Chỉ chuyển tiếp payload đã qua privacy allowlist</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="term-head">
+          <h2><span class="dot off" id="tdot"></span>PROXY TERMINAL / LIVE OUTPUT</h2>
+          <span>stdout + stderr</span>
+        </div>
+        <div id="log" role="log" aria-live="polite"><div class="empty">Proxy đang tắt. Bấm “Bật proxy” để xem log trực tiếp.</div></div>
+      </section>
+    </div>
+
+    <div id="otherView" class="view">
+      <div class="eyebrow" id="oEyebrow">GLOBALBAN</div>
+      <h1 id="oTitle"></h1>
+      <section class="card empty-card" style="margin-top:34px"><b>Chưa có dữ liệu</b>Mục này sẽ hiển thị khi có sự kiện được ghi nhận.</section>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var log=$("log"),badge=$("badge"),startB=$("start"),stopB=$("stop"),tdot=$("tdot");
+  var timer=null,running=false;
+
+  function esc(s){return String(s).replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c]})}
+  function ts(){return new Date().toLocaleTimeString("vi-VN",{hour12:false})}
+  function line(msg,cls){
+    var e=log.querySelector(".empty"); if(e) log.innerHTML="";
+    var d=document.createElement("div");
+    d.innerHTML='<span class="t">'+ts()+'</span> <span class="'+(cls||"")+'">'+esc(msg)+'</span>';
+    log.appendChild(d); log.scrollTop=log.scrollHeight;
+  }
+  function setState(on){
+    running=on;
+    badge.textContent=on?"Đang chạy":"Đã tắt";
+    badge.classList.toggle("on",on);
+    startB.disabled=on; stopB.disabled=!on;
+    $("host").disabled=on; $("port").disabled=on; $("up").disabled=on;
+    tdot.classList.toggle("off",!on);
+  }
+
+  var samples=[
+    ["POST /chat/completions → 200 (3 trường đã che)","ok"],
+    ["allowlist: chặn trường “email” trong payload","warn"],
+    ["POST /chat/completions → 200 (0 trường bị chặn)","ok"],
+    ["allowlist: chặn trường “phone” trong payload","warn"],
+    ["POST /embeddings → 200 (1 trường đã che)","ok"],
+    ["upstream phản hồi chậm: 1.8s","warn"]
+  ];
+
+  startB.addEventListener("click",function(){
+    var port=parseInt($("port").value,10);
+    if(!(port>0&&port<65536)){ line("Port không hợp lệ. Nhập số từ 1 đến 65535.","err"); return; }
+    var host=$("host").value.trim()||"127.0.0.1";
+    setState(true);
+    line("Khởi động egress proxy...");
+    line("Lắng nghe tại http://"+host+":"+port,"ok");
+    line("Upstream: "+$("up").value.trim());
+    line("Privacy allowlist đã nạp, chỉ chuyển tiếp trường được phép","ok");
+    var i=0;
+    timer=setInterval(function(){var s=samples[i++%samples.length];line(s[0],s[1])},2200);
+  });
+
+  stopB.addEventListener("click",function(){
+    clearInterval(timer);
+    line("Nhận lệnh tắt, đang đóng kết nối...","warn");
+    line("Proxy đã dừng.");
+    setState(false);
+  });
+
+  $("use").addEventListener("click",function(){
+    var url="http://"+($("host").value.trim()||"127.0.0.1")+":"+$("port").value.trim();
+    if(!running){ line("Hãy bật proxy trước khi áp dụng cho AI.","err"); return; }
+    line("Đã đặt HTTPS_PROXY="+url+" cho tiến trình AI","ok");
+  });
+
+  var titles={monitor:"Giám sát",activity:"Dữ liệu hoạt động",audit:"Nhật ký kiểm tra"};
+  var btns=document.querySelectorAll("nav button");
+  Array.prototype.forEach.call(btns,function(b){
+    b.addEventListener("click",function(){
+      Array.prototype.forEach.call(btns,function(x){x.removeAttribute("aria-current")});
+      b.setAttribute("aria-current","page");
+      var v=b.getAttribute("data-view"),isProxy=v==="proxy";
+      $("proxyView").classList.toggle("show",isProxy);
+      $("otherView").classList.toggle("show",!isProxy);
+      if(!isProxy){ $("oTitle").textContent=titles[v]; }
+    });
+  });
+})();
+</script>
+</body>
+</html>

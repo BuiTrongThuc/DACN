@@ -160,10 +160,13 @@ def load_config(path: str | Path) -> AppConfig:
         ),
         policy=PolicyConfig(
             allowlist=tuple(policy.get("allowlist", ("127.0.0.1", "::1"))),
-            block_private_addresses=bool(policy.get("block_private_addresses", True)),
+            block_private_addresses=_bool_value(
+                policy.get("block_private_addresses", True),
+                "policy.block_private_addresses",
+            ),
         ),
         actions=ActionsConfig(
-            dry_run=bool(actions.get("dry_run", True)),
+            dry_run=_bool_value(actions.get("dry_run", True), "actions.dry_run"),
             firewall_command=_string_tuple(
                 actions.get(
                     "firewall_command",
@@ -181,12 +184,15 @@ def load_config(path: str | Path) -> AppConfig:
         ),
         audit=AuditConfig(path=str(audit.get("path", "globalban-audit.jsonl"))),
         ai=AIConfig(
-            enabled=bool(ai.get("enabled", False)),
+            enabled=_bool_value(ai.get("enabled", False), "ai.enabled"),
             base_url=str(ai.get("base_url", "https://api.openai.com/v1")),
             model=str(ai.get("model", "gpt-4o-mini")),
         ),
         notifications=NotificationsConfig(
-            whatsapp_enabled=bool(notifications.get("whatsapp_enabled", False))
+            whatsapp_enabled=_bool_value(
+                notifications.get("whatsapp_enabled", False),
+                "notifications.whatsapp_enabled",
+            )
         ),
     )
     if config.ingestion.poll_interval_seconds <= 0:
@@ -210,3 +216,9 @@ def _string_tuple(value: Any, name: str) -> tuple[str, ...]:
     ):
         raise ValueError(f"{name} must be a sequence of non-empty strings")
     return tuple(value)
+
+
+def _bool_value(value: Any, name: str) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"{name} must be a boolean")
+    return value

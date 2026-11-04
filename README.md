@@ -50,10 +50,10 @@ client receives only the masked network and aggregate counts through the
 Ubuntu egress proxy; the raw Windows log is never sent to the API.
 
 Configuration secrets can be supplied through environment variables; see
-`.env.example`. The application does not load `.env` automatically, so export
-those variables in your shell or use your process manager's secret mechanism.
-WhatsApp notifications and the optional AI explanation are disabled unless
-configured.
+`.env.example`. The application loads `.env` from the current directory or
+repository root when variables are not already set, or you can use your
+process manager's secret mechanism. WhatsApp notifications and the optional AI
+explanation are disabled unless configured.
 
 ## Windows event monitoring
 
@@ -114,7 +114,9 @@ spraying, nonexistent-user enumeration, distributed attacks against one user,
 and successful login after repeated failures. Results are emitted as the same
 explainable risk candidates used by the existing policy and audit pipeline.
 The state file is configured by `detection.behavior_state_path`. The detector
-does not bypass the allowlist, dry-run mode, or firewall action adapter.
+does not bypass the allowlist, dry-run mode, approval gate, or firewall action
+adapter. Windows risk actions are recorded as approval-required until a
+trusted operator explicitly approves them.
 
 The AI receives normalized, allowlisted evidence only. It is called directly
 using the configured external `ai.base_url`; the application does not require

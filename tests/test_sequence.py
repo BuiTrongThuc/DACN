@@ -57,3 +57,14 @@ def test_behavior_signals_can_raise_risk_without_special_event_id():
 
     assert candidate is not None
     assert "encoded or obfuscated execution behavior" in candidate.reasons
+
+
+def test_old_event_state_is_pruned_from_inactive_buckets():
+    start = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    detector = SequenceCorrelator(window_seconds=300)
+
+    detector.add(make_event(1102, start, TargetUserName="old-user"))
+    detector.add(make_event(1102, start + timedelta(seconds=301), TargetUserName="new-user"))
+
+    assert len(detector._events) == 1
+    assert len(detector._fingerprints) == 1

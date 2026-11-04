@@ -1,4 +1,5 @@
 .venv/
+.venv312/
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -6,7 +7,6 @@ __pycache__/
 .coverage
 htmlcov/
 .env
-config/config.yaml
 *.log
 *.jsonl.tmp
 globalban-audit.jsonl

@@ -1,6 +1,7 @@
 """Validate outbound payloads against the privacy allowlist."""
 
 from collections.abc import Mapping
+from ipaddress import ip_network
 
 ALLOWED_AI_FIELDS = frozenset(
     {"source_network", "failed_attempts", "window_seconds", "event_type"}
@@ -11,6 +12,21 @@ ALLOWED_WINDOWS_FIELDS = frozenset(
 ALLOWED_RISK_FIELDS = frozenset(
     {"event_type", "risk_score", "event_ids", "reasons", "source_network"}
 )
+ALLOWED_WINDOW_METADATA_FIELDS = frozenset(
+    {"TargetUserName", "SubjectUserName", "ServiceName", "TaskName"}
+)
+
+
+def _validate_masked_network(value: object) -> None:
+    if not isinstance(value, str) or "/" not in value:
+        raise ValueError("source_network must be a masked CIDR network")
+    try:
+        network = ip_network(value, strict=False)
+    except ValueError as exc:
+        raise ValueError("source_network must be a valid CIDR network") from exc
+    maximum_prefix = 24 if network.version == 4 else 64
+    if network.prefixlen > maximum_prefix or str(network) != value:
+        raise ValueError("source_network must be a canonical masked network")
 
 
 def validate_ai_payload(payload: Mapping[str, object]) -> None:
@@ -21,8 +37,7 @@ def validate_ai_payload(payload: Mapping[str, object]) -> None:
     missing = required - set(payload)
     if missing:
         raise ValueError(f"Outbound AI payload is missing required fields: {sorted(missing)}")
-    if not isinstance(payload["source_network"], str) or "/" not in payload["source_network"]:
-        raise ValueError("source_network must be a masked CIDR network")
+    _validate_masked_network(payload["source_network"])
     for field in ("failed_attempts", "window_seconds"):
         value = payload[field]
         if isinstance(value, bool) or not isinstance(value, int) or value < 0:
@@ -48,9 +63,13 @@ def validate_windows_payload(payload: Mapping[str, object]) -> None:
         raise ValueError("provider must be a non-empty string")
     fields = payload["fields"]
     if not isinstance(fields, Mapping) or not all(
-        isinstance(name, str) and isinstance(value, str) for name, value in fields.items()
+        isinstance(name, str)
+        and name in ALLOWED_WINDOW_METADATA_FIELDS
+        and isinstance(value, str)
+        and len(value) <= 256
+        for name, value in fields.items()
     ):
-        raise ValueError("Windows fields must be text metadata")
+        raise ValueError("Windows fields contain disallowed or oversized metadata")
 
 
 def validate_risk_payload(payload: Mapping[str, object]) -> None:
@@ -66,7 +85,5 @@ def validate_risk_payload(payload: Mapping[str, object]) -> None:
     if not isinstance(reasons, list) or not all(isinstance(item, str) for item in reasons):
         raise ValueError("reasons must be a list of strings")
     source_network = payload["source_network"]
-    if source_network is not None and (
-        not isinstance(source_network, str) or "/" not in source_network
-    ):
-        raise ValueError("source_network must be a masked CIDR network or null")
+    if source_network is not None:
+        _validate_masked_network(source_network)

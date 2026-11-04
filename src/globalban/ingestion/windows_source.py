@@ -16,16 +16,17 @@ def _powershell_script(log_names: Sequence[str], lookback_seconds: int) -> str:
     return f"""
 $start = (Get-Date).AddSeconds(-{lookback_seconds})
 $logs = @({quoted_names})
-foreach ($log in $logs) {{
+    $events = foreach ($log in $logs) {{
     try {{
-        Get-WinEvent -LogName $log -MaxEvents 200 -ErrorAction Stop |
-            Where-Object {{ $_.TimeCreated -ge $start }} |
-            ForEach-Object {{ [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($_.ToXml())) }}
+        Get-WinEvent -LogName $log -MaxEvents 1000 -ErrorAction Stop |
+            Where-Object {{ $_.TimeCreated -ge $start }}
     }} catch {{
         [Console]::Error.WriteLine("GlobalBan channel unavailable: $log - $($_.Exception.Message)")
-        continue
     }}
 }}
+$events |
+    Sort-Object TimeCreated |
+    ForEach-Object {{ [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($_.ToXml())) }}
 exit 0
 """
 

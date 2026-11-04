@@ -7,6 +7,7 @@ from pathlib import Path
 from globalban.ai.client import AIClient
 from globalban.agent.router import choose_tools
 from globalban.actions.block_ip import IPBlocker
+from globalban.actions.enforcer import ActionEnforcer
 from globalban.audit.logger import AuditLogger
 from globalban.config import AppConfig, load_config
 from globalban.detection.aggregator import FailedAttemptAggregator
@@ -23,6 +24,7 @@ from globalban.models.events import WindowsEvent
 from globalban.ingestion.tailer import follow_file
 from globalban.notifications.whatsapp import WhatsAppNotifier
 from globalban.policy.guard import PolicyGuard
+from globalban.policy.gate import PolicyGate
 from globalban.privacy.masking import mask_ip
 
 logger = logging.getLogger("globalban")
@@ -35,8 +37,7 @@ def _handle_windows_event(
     correlator: SequenceCorrelator,
     audit: AuditLogger,
     ai_client: AIClient | None,
-    blocker: IPBlocker,
-    policy: PolicyGuard,
+    action_enforcer: ActionEnforcer,
     risk_candidate=None,
 ) -> None:
     candidate = risk_candidate or correlator.add(event)
@@ -103,17 +104,21 @@ def _handle_windows_event(
                 recommended_actions=list(explanation.recommended_actions),
             )
     if candidate.source_ip is not None:
-        decision = policy.evaluate_address(candidate.source_ip)
-        if decision.allowed and candidate.score >= 100:
-            result = blocker.block(candidate.source_ip)
-            audit.record(
-                "windows_behavior_action",
-                source_network=mask_ip(candidate.source_ip),
-                score=candidate.score,
-                allowed=decision.allowed,
-                command=result.command,
-                result=result.message,
-            )
+        enforcement = action_enforcer.block_ip(
+            candidate.source_ip,
+            risk_score=candidate.score,
+            approved=False,
+        )
+        result = enforcement.result
+        audit.record(
+            "windows_behavior_action",
+            source_network=mask_ip(candidate.source_ip),
+            score=candidate.score,
+            status=enforcement.decision.status,
+            reasons=list(enforcement.decision.reasons),
+            command=result.command if result else (),
+            result=result.message if result else "action not executed",
+        )
 
 
 def _handle_candidate(
@@ -174,11 +179,14 @@ def _handle_candidate(
             recommended_actions=list(explanation.recommended_actions),
         )
     if notifier is not None:
-        notifier.send(
-            f"GlobalBan alert: {mask_ip(candidate.source_ip)} had "
-            f"{candidate.failed_attempts} failed SSH attempts. "
-            f"Action: {'dry-run' if not result.blocked else 'blocked'}."
-        )
+        try:
+            notifier.send(
+                f"GlobalBan alert: {mask_ip(candidate.source_ip)} had "
+                f"{candidate.failed_attempts} failed SSH attempts. "
+                f"Action: {'dry-run' if not result.blocked else 'blocked'}."
+            )
+        except RuntimeError as exc:
+            logger.warning("WhatsApp notification unavailable: %s", exc)
 
 
 def run(
@@ -195,6 +203,10 @@ def run(
     policy = PolicyGuard(
         allowlist=config.policy.allowlist,
         block_private_addresses=config.policy.block_private_addresses,
+    )
+    action_enforcer = ActionEnforcer(
+        blocker=blocker,
+        gate=PolicyGate(policy=policy),
     )
     aggregator = FailedAttemptAggregator(
         window_seconds=config.detection.window_seconds,
@@ -281,8 +293,7 @@ def run(
                 correlator=correlator,
                 audit=audit,
                 ai_client=ai_client,
-                blocker=blocker,
-                policy=policy,
+                action_enforcer=action_enforcer,
                 risk_candidate=behavior_candidate,
             )
             if windows_event.event_id == 4625:
