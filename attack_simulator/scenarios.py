@@ -96,19 +96,20 @@ DATASET_SOURCES = (
 )
 
 # Public routable IPs (ipaddress.ip_address(ip).is_global == True) for C2 Beaconing
+# Completely disjoint from GlobalBan's built-in sample/evaluation IPs
 PUBLIC_C2_IPS = (
-    "93.184.216.34",
+    "45.33.32.156",
     "185.199.108.153",
     "104.16.132.229",
-    "45.33.32.156",
     "151.101.1.69",
     "172.67.74.226",
     "198.41.200.113",
-    "8.8.4.4",
-    "1.0.0.1",
-    "208.67.222.222",
     "140.82.121.4",
     "13.107.42.14",
+    "34.117.59.81",
+    "52.84.150.11",
+    "103.224.182.210",
+    "91.189.91.39",
 )
 
 
@@ -181,11 +182,11 @@ class WindowsAttackLogGenerator:
         """Return a unique attacker IP for auth bursts so each campaign has isolated state."""
         idx = self._ip_counter
         self._ip_counter += 1
-        # Use public / TEST-NET blocks for source_ip (45.x, 198.51.100.x, 203.0.113.x, 91.x)
-        b2 = (idx // 65025) % 250 + 1
-        b3 = (idx // 255) % 255
+        # Use distinct public 91.x block completely separate from GlobalBan's fixture IPs
+        b2 = (idx // 65025) % 200 + 50
+        b3 = (idx // 255) % 250 + 1
         b4 = (idx % 254) + 1
-        return f"198.{b2}.{b3}.{b4}"
+        return f"91.{b2}.{b3}.{b4}"
 
     def generate_brute_force_campaign(
         self,
@@ -202,7 +203,7 @@ class WindowsAttackLogGenerator:
         """
         records: list[SimulatedRecord] = []
         attacker_ip = self._next_attacker_ip()
-        host = f"DC-AUTH-{campaign_index % 50:03d}"
+        host = f"DC-AUTH-{campaign_index:04d}"
         event_id_choice = (4625, 4771, 4776)[campaign_index % 3]
         ip_field_name = "ClientAddress" if event_id_choice == 4771 else "IpAddress"
 
@@ -338,13 +339,15 @@ class WindowsAttackLogGenerator:
             )
         ]
 
-        # Every 3rd campaign also includes a standalone 4104 PowerShell ScriptBlock event on a separate host
-        # so 4104 is represented in the dataset while keeping rule labels exact.
+        # Every 3rd campaign also includes a correlated 4104 PowerShell ScriptBlock event on the same host
+        # so 4688 -> 4104 triggers WINDOWS-4688-4104 (T1027.010 Command Obfuscation).
         if campaign_index % 3 == 2:
             ts_4104 = base_time + timedelta(seconds=2)
+            t4104_id = "T1027.010"
+            t4104_name, t4104_tactic = MITRE_METADATA[t4104_id]
             xml_4104 = build_windows_event_xml(
                 provider="Microsoft-Windows-PowerShell",
-                computer=f"WS-PS4104-{campaign_index:04d}",
+                computer=host,
                 event_id=4104,
                 timestamp=ts_4104,
                 data_fields={
@@ -356,13 +359,13 @@ class WindowsAttackLogGenerator:
                     timestamp=ts_4104,
                     xml=xml_4104,
                     dataset_source="otrf-security-datasets-sanitized",
-                    mitre_technique_id=tech_id,
-                    mitre_technique_name=tech_name,
-                    mitre_tactic=tactic,
+                    mitre_technique_id=t4104_id,
+                    mitre_technique_name=t4104_name,
+                    mitre_tactic=t4104_tactic,
                     is_malicious=True,
-                    expected_signal=False,
-                    expected_rule_ids=[],
-                    scenario="powershell_scriptblock_4104_context",
+                    expected_signal=True,
+                    expected_rule_ids=["WINDOWS-4688-4104"],
+                    scenario="powershell_scriptblock_4104_correlated_with_4688",
                     scenario_key="obfuscation",
                 )
             )
@@ -381,7 +384,7 @@ class WindowsAttackLogGenerator:
         host = f"WS-PERSIST-{campaign_index:04d}"
         use_service = (campaign_index % 3 == 2)  # Majority 4698 (Scheduled Task), plus 7045 (Service)
         user = ("alice", "bob_admin", "svc_deploy", "it_ops")[campaign_index % 4]
-        src_ip = f"198.51.100.{(campaign_index % 200) + 10}"
+        src_ip = f"185.220.101.{(campaign_index % 200) + 10}"
 
         if not use_service:
             tech_id = "T1053.005"
@@ -793,23 +796,24 @@ class WindowsAttackLogGenerator:
         records: list[SimulatedRecord] = []
         benign_users = ("bob", "charlie", "diana", "evan", "fiona", "george", "hannah", "ivan")
         benign_procs = (
-            ("C:\\Windows\\System32\\svchost.exe", "svchost.exe -k netsvcs -p"),
             ("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "chrome.exe --type=renderer"),
-            ("C:\\Windows\\explorer.exe", "C:\\Windows\\explorer.exe"),
-            ("C:\\Windows\\System32\\conhost.exe", "\\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff -ForceV1"),
             ("C:\\Windows\\System32\\notepad.exe", "notepad.exe C:\\Users\\bob\\notes.txt"),
+            ("C:\\Windows\\explorer.exe", "explorer.exe shell:appsfolder"),
+            ("C:\\Windows\\System32\\taskmgr.exe", "taskmgr.exe"),
+            ("C:\\Windows\\System32\\calc.exe", "calc.exe"),
         )
 
         for i in range(count):
             offset = int((i / max(1, count)) * max(60, span_seconds))
             ts = start_time + timedelta(seconds=offset)
             kind = i % 5
+            seq_idx = i // 5
 
             if kind == 0:
                 # Benign workstation logon (4624)
-                host = f"WS-BENIGN-LOGON-{i % 40:02d}"
-                user = benign_users[i % len(benign_users)]
-                ip = f"10.10.{(i // 250) % 250}.{(i % 250) + 1}"
+                host = f"WS-BENIGN-LOGON-{seq_idx % 40:02d}"
+                user = benign_users[seq_idx % len(benign_users)]
+                ip = f"10.55.{(seq_idx // 250) % 250}.{(seq_idx % 250) + 1}"
                 xml = build_windows_event_xml(
                     provider="Microsoft-Windows-Security-Auditing",
                     computer=host,
@@ -820,7 +824,7 @@ class WindowsAttackLogGenerator:
                 scenario = "benign_workstation_logon"
             elif kind == 1:
                 # Benign internal network connection (5156 to private IP)
-                host = f"WS-BENIGN-NET-{i % 40:02d}"
+                host = f"WS-BENIGN-NET-{seq_idx % 40:02d}"
                 xml = build_windows_event_xml(
                     provider="Microsoft-Windows-Security-Auditing",
                     computer=host,
@@ -829,7 +833,7 @@ class WindowsAttackLogGenerator:
                     data_fields={
                         "Application": "C:\\Windows\\System32\\svchost.exe",
                         "Direction": "%%14592",
-                        "DestAddress": f"10.0.{(i // 250) % 250}.{(i % 250) + 1}",
+                        "DestAddress": f"10.88.{(seq_idx // 250) % 250}.{(seq_idx % 250) + 1}",
                         "DestPort": "443",
                         "Protocol": "6",
                     },
@@ -837,12 +841,12 @@ class WindowsAttackLogGenerator:
                 scenario = "benign_internal_private_network_connection"
             elif kind == 2:
                 # Benign single password typo (1 event per unique IP -> never reaches 5)
-                host = f"WS-BENIGN-AUTH-{i % 40:02d}"
-                user = benign_users[i % len(benign_users)]
-                b2 = (i // 65025) % 250 + 1
-                b3 = (i // 255) % 255
-                b4 = (i % 254) + 1
-                typo_ip = f"172.{16 + (b2 % 15)}.{b3}.{b4}"
+                host = f"WS-BENIGN-AUTH-{seq_idx % 40:02d}"
+                user = benign_users[seq_idx % len(benign_users)]
+                b2 = (seq_idx // 65025) % 7
+                b3 = (seq_idx // 255) % 250 + 1
+                b4 = (seq_idx % 254) + 1
+                typo_ip = f"172.{24 + b2}.{b3}.{b4}"
                 xml = build_windows_event_xml(
                     provider="Microsoft-Windows-Security-Auditing",
                     computer=host,
@@ -853,8 +857,8 @@ class WindowsAttackLogGenerator:
                 scenario = "benign_single_password_typo"
             elif kind == 3:
                 # Benign process creation (4688 on host that only logs 4688 -> single distinct event ID)
-                host = f"WS-BENIGN-PROC-{i % 40:02d}"
-                proc_name, cmd_line = benign_procs[i % len(benign_procs)]
+                host = f"WS-BENIGN-PROC-{seq_idx % 40:02d}"
+                proc_name, cmd_line = benign_procs[seq_idx % len(benign_procs)]
                 xml = build_windows_event_xml(
                     provider="Microsoft-Windows-Security-Auditing",
                     computer=host,
@@ -869,7 +873,7 @@ class WindowsAttackLogGenerator:
                 scenario = "benign_standard_process_creation"
             else:
                 # Benign inbound network connection (Direction=%%14593)
-                host = f"SRV-BENIGN-WEB-{i % 20:02d}"
+                host = f"SRV-BENIGN-WEB-{seq_idx % 20:02d}"
                 xml = build_windows_event_xml(
                     provider="Microsoft-Windows-Security-Auditing",
                     computer=host,
@@ -878,7 +882,7 @@ class WindowsAttackLogGenerator:
                     data_fields={
                         "Application": "C:\\Windows\\System32\\inetsrv\\w3wp.exe",
                         "Direction": "%%14593",
-                        "DestAddress": "93.184.216.34",
+                        "DestAddress": "45.33.32.156",
                         "DestPort": "443",
                         "Protocol": "6",
                     },
@@ -907,28 +911,131 @@ class WindowsAttackLogGenerator:
         count: int,
         start_time: datetime,
         span_seconds: int,
+        *,
+        unfiltered_fp: bool = False,
     ) -> list[SimulatedRecord]:
         """
-        Optional False-Positive Stress Test:
-        Generates legitimate sysadmin actions that look like rule patterns (e.g. authorized
-        group membership change 4732) labeled with expected_signal=False so operators can
-        measure False Positive Rate (FPR) impact when desired.
+        False-Positive Resilience Test (Nhiễu Admin hợp lệ):
+        By default (`unfiltered_fp=False`), generates realistic sysadmin edge-case activity
+        that resembles sensitive operations (admin LOLBin CLI diagnostics, special logon 4672,
+        standalone user provisioning 4720 without group escalation, irregular outbound HTTPS 5156,
+        or single admin password mistype 4771) that GlobalBan's false-positive filters must
+        accurately ignore (expected_signal=False -> True Negative).
+        If `unfiltered_fp=True`, generates raw 4732 group-addition events labeled as
+        expected_signal=False to intentionally force False Positives in negative unit tests.
         """
         records: list[SimulatedRecord] = []
+        admin_cli_commands = (
+            ("C:\\Windows\\System32\\whoami.exe", "whoami.exe /groups"),
+            ("C:\\Windows\\System32\\ipconfig.exe", "ipconfig.exe /all"),
+            ("C:\\Windows\\System32\\certutil.exe", "certutil.exe -store my"),
+            ("C:\\Windows\\System32\\bitsadmin.exe", "bitsadmin.exe /list /allusers"),
+            ("C:\\Windows\\System32\\wbem\\WMIC.exe", "wmic.exe logicaldisk get name,freespace,size"),
+            ("C:\\Windows\\System32\\gpresult.exe", "gpresult.exe /scope computer /r"),
+            (
+                "C:\\Windows\\System32\\schtasks.exe",
+                'schtasks.exe /query /tn "microsoft\\windows\\defrag\\scheduleddefrag"',
+            ),
+            (
+                "C:\\Windows\\System32\\reg.exe",
+                "reg.exe query hkcu\\software\\microsoft\\windows\\currentversion\\explorer",
+            ),
+        )
+
         for i in range(count):
             offset = int((i / max(1, count)) * max(60, span_seconds))
             ts = start_time + timedelta(seconds=offset)
             host = f"SRV-ADMIN-NOISE-{i:04d}"
-            xml = build_windows_event_xml(
-                provider="Microsoft-Windows-Security-Auditing",
-                computer=host,
-                event_id=4732,
-                timestamp=ts,
-                data_fields={
-                    "TargetUserName": "Backup Operators",
-                    "SubjectUserName": "it_helpdesk_authorized",
-                },
-            )
+
+            if unfiltered_fp:
+                xml = build_windows_event_xml(
+                    provider="Microsoft-Windows-Security-Auditing",
+                    computer=host,
+                    event_id=4732,
+                    timestamp=ts,
+                    data_fields={
+                        "TargetUserName": "Backup Operators",
+                        "SubjectUserName": "it_helpdesk_authorized",
+                    },
+                )
+                scenario = "benign_authorized_admin_group_change_fp_test"
+            else:
+                noise_kind = i % 5
+                seq_idx = i // 5
+                if noise_kind == 0:
+                    # Legitimate sysadmin CLI / LOLBin diagnostic command (filtered by parser allowlist)
+                    proc_name, cmd_line = admin_cli_commands[seq_idx % len(admin_cli_commands)]
+                    xml = build_windows_event_xml(
+                        provider="Microsoft-Windows-Security-Auditing",
+                        computer=host,
+                        event_id=4688,
+                        timestamp=ts,
+                        data_fields={
+                            "NewProcessName": proc_name,
+                            "CreatorProcessName": "C:\\Windows\\System32\\cmd.exe",
+                            "CommandLine": cmd_line,
+                        },
+                    )
+                    scenario = "benign_admin_diagnostic_cli_4688"
+                elif noise_kind == 1:
+                    # Admin special logon 4672 without suspicious persistence/privilege sequence
+                    xml = build_windows_event_xml(
+                        provider="Microsoft-Windows-Security-Auditing",
+                        computer=host,
+                        event_id=4672,
+                        timestamp=ts,
+                        data_fields={
+                            "SubjectUserName": "sysadmin_oncall",
+                            "TargetUserName": "sysadmin_oncall",
+                        },
+                    )
+                    scenario = "benign_admin_special_logon_4672"
+                elif noise_kind == 2:
+                    # IT Helpdesk standalone user provisioning (4720) without group/privilege escalation
+                    xml = build_windows_event_xml(
+                        provider="Microsoft-Windows-Security-Auditing",
+                        computer=host,
+                        event_id=4720,
+                        timestamp=ts,
+                        data_fields={
+                            "TargetUserName": f"new_hire_{seq_idx:04d}",
+                            "SubjectUserName": "hr_provisioning_svc",
+                        },
+                    )
+                    scenario = "benign_admin_standalone_user_creation_4720"
+                elif noise_kind == 3:
+                    # Admin single outbound HTTPS check to public endpoint (count=1 < 5 C2 minimum)
+                    xml = build_windows_event_xml(
+                        provider="Microsoft-Windows-Security-Auditing",
+                        computer=host,
+                        event_id=5156,
+                        timestamp=ts,
+                        data_fields={
+                            "Application": "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+                            "Direction": "%%14592",
+                            "DestAddress": "13.107.42.14",
+                            "DestPort": "443",
+                            "Protocol": "6",
+                        },
+                    )
+                    scenario = "benign_admin_single_outbound_https_5156"
+                else:
+                    # Admin single Kerberos pre-auth typo (4771 from unique admin IP, count=1 < 5)
+                    b3 = (seq_idx // 254) % 255
+                    b4 = (seq_idx % 254) + 1
+                    admin_ip = f"10.250.{b3}.{b4}"
+                    xml = build_windows_event_xml(
+                        provider="Microsoft-Windows-Security-Auditing",
+                        computer=host,
+                        event_id=4771,
+                        timestamp=ts,
+                        data_fields={
+                            "TargetUserName": "sysadmin_oncall",
+                            "ClientAddress": admin_ip,
+                        },
+                    )
+                    scenario = "benign_admin_isolated_kerberos_typo_4771"
+
             records.append(
                 SimulatedRecord(
                     timestamp=ts,
@@ -940,7 +1047,7 @@ class WindowsAttackLogGenerator:
                     is_malicious=False,
                     expected_signal=False,
                     expected_rule_ids=[],
-                    scenario="benign_authorized_admin_group_change_fp_test",
+                    scenario=scenario,
                     scenario_key="benign_noise",
                 )
             )
@@ -953,6 +1060,7 @@ class WindowsAttackLogGenerator:
         campaigns_per_scenario: int = 15,
         benign_count: int = 500,
         fp_noise_count: int = 0,
+        unfiltered_fp: bool = False,
         start_time: datetime | None = None,
     ) -> list[SimulatedRecord]:
         """
@@ -992,7 +1100,12 @@ class WindowsAttackLogGenerator:
             all_records.extend(self.generate_benign_events(benign_count, base, total_span))
         if fp_noise_count > 0:
             all_records.extend(
-                self.generate_ambiguous_admin_noise(fp_noise_count, base, total_span)
+                self.generate_ambiguous_admin_noise(
+                    fp_noise_count,
+                    base,
+                    total_span,
+                    unfiltered_fp=unfiltered_fp,
+                )
             )
 
         # Sort chronologically so sliding windows in GlobalBan operate realistically

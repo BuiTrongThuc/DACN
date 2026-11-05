@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
 import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox, ttk
+
+if __package__ in (None, ""):
+    _PROJECT_ROOT = str(Path(__file__).resolve().parents[1])
+    if _PROJECT_ROOT not in sys.path:
+        sys.path.insert(0, _PROJECT_ROOT)
 
 from attack_simulator.evaluator import (
     DEFAULT_GLOBALBAN_ROOT,
@@ -35,7 +41,7 @@ class AttackSimulatorGUI:
             "GlobalBan Red-Team Simulator & Benchmark Tool (Windows XML Attack Generator)"
         )
         self.root.geometry("1180x780")
-        self.output_dir = output_dir or (Path.cwd() / "output")
+        self.output_dir = output_dir or (Path(__file__).resolve().parents[1] / "output")
         self.globalban_root = globalban_root
         self.last_xml_path: Path | None = None
         self.last_jsonl_path: Path | None = None
@@ -269,6 +275,7 @@ class AttackSimulatorGUI:
 
             jsonl_path = self.output_dir / "simulated_windows_eval.jsonl"
             xml_path = self.output_dir / "simulated_windows_events.xml"
+            report_json_path = self.output_dir / "evaluation_report.json"
             export_dataset_files(records, jsonl_path, xml_path)
             self.last_jsonl_path = jsonl_path
             self.last_xml_path = xml_path
@@ -277,6 +284,10 @@ class AttackSimulatorGUI:
                 jsonl_path=jsonl_path,
                 xml_path=xml_path,
                 globalban_root=self.globalban_root,
+            )
+            report_json_path.write_text(
+                json.dumps(report.to_dict(), indent=2, ensure_ascii=False),
+                encoding="utf-8",
             )
             self._update_ui_with_report(report)
         except Exception as exc:
@@ -372,4 +383,8 @@ def launch_gui(
     root = tk.Tk()
     AttackSimulatorGUI(root, output_dir=output_dir, globalban_root=globalban_root)
     root.mainloop()
+
+
+if __name__ == "__main__":
+    launch_gui()
 

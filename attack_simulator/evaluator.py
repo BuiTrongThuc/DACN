@@ -47,6 +47,8 @@ class DetailedEvaluationReport:
     auth_burst_level1_count: int = 0
     auth_burst_level2_count: int = 0
     persistence_correlator_count: int = 0
+    expected_signal_events: int = 0
+    precursor_attack_events: int = 0
     sample_detections: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -55,6 +57,8 @@ class DetailedEvaluationReport:
             "xml_path": str(self.xml_path) if self.xml_path else None,
             "total_events": self.total_events,
             "malicious_events": self.malicious_events,
+            "expected_signal_events": self.expected_signal_events,
+            "precursor_attack_events": self.precursor_attack_events,
             "benign_events": self.benign_events,
             "confusion_matrix": {
                 "TP": self.true_positive,
@@ -72,6 +76,7 @@ class DetailedEvaluationReport:
             "mitre_technique_counts": self.mitre_technique_counts,
             "mitre_signal_recall_by_technique": self.mitre_signal_recall_by_technique,
             "triggered_rule_counts": self.triggered_rule_counts,
+            "total_alerts_and_signals": sum(self.triggered_rule_counts.values()),
             "auth_burst_levels": {
                 "level_1": self.auth_burst_level1_count,
                 "level_2": self.auth_burst_level2_count,
@@ -112,6 +117,10 @@ def run_globalban_evaluation(
     ]
 
     malicious_count = sum(1 for r in rows if r.get("is_malicious"))
+    expected_signal_count = sum(1 for r in rows if r.get("expected_signal"))
+    precursor_count = sum(
+        1 for r in rows if r.get("is_malicious") and not r.get("expected_signal")
+    )
     benign_count = len(rows) - malicious_count
 
     # Run a parallel inspection pass to collect per-rule & Level 1/Level 2 breakdown
@@ -144,10 +153,8 @@ def run_globalban_evaluation(
             rule_counter[alert.rule_id] += 1
             if alert.response_level == 1:
                 level1_count += 1
-                rule_counter["AUTH-FAILURE-BURST (Level 1)"] += 1
             elif alert.response_level == 2:
                 level2_count += 1
-                rule_counter["AUTH-FAILURE-BURST (Level 2)"] += 1
             if len(sample_detections) < 50:
                 sample_detections.append(
                     {
@@ -168,7 +175,6 @@ def run_globalban_evaluation(
             rule_counter[seq_rule_id] += 1
             if "logon, process creation, and persistence events correlated" in seq_sig.reasons:
                 persistence_count += 1
-                rule_counter["logon-process-persistence (internal)"] += 1
             if len(sample_detections) < 50:
                 sample_detections.append(
                     {
@@ -218,6 +224,8 @@ def run_globalban_evaluation(
         auth_burst_level1_count=level1_count,
         auth_burst_level2_count=level2_count,
         persistence_correlator_count=persistence_count,
+        expected_signal_events=expected_signal_count,
+        precursor_attack_events=precursor_count,
         sample_detections=sample_detections,
     )
 
@@ -262,13 +270,13 @@ def format_report_text(report: DetailedEvaluationReport) -> str:
         f"File Dataset (.jsonl) : {report.jsonl_path}",
         f"File Export  (.xml)   : {report.xml_path or 'N/A'}",
         f"Tổng số sự kiện sinh  : {report.total_events:,} logs "
-        f"(Tấn công: {report.malicious_events:,} | Bình thường/Benign: {report.benign_events:,})",
+        f"(Tấn công: {report.malicious_events:,} [Kích hoạt: {report.expected_signal_events:,}, Tiền đề: {report.precursor_attack_events:,}] | Bình thường/Benign: {report.benign_events:,})",
         "-" * 78,
         "1. MA TRẬN NHẦM LẪN (CONFUSION MATRIX - SIGNAL DETECTION):",
         f"   - True Positive  (TP - Bắt đúng tín hiệu tấn công) : {report.true_positive:,}",
         f"   - False Positive (FP - Báo động giả trên log sạch) : {report.false_positive:,}",
         f"   - False Negative (FN - Bỏ lọt tín hiệu tấn công)   : {report.false_negative:,}",
-        f"   - True Negative  (TN - Bỏ qua đúng log bình thường): {report.true_negative:,}",
+        f"   - True Negative  (TN - Bỏ qua đúng log không báo)  : {report.true_negative:,}",
         "-" * 78,
         "2. CÁC CHỈ SỐ ĐO LƯỜNG CHÍNH (EVALUATION METRICS):",
         f"   - Precision (Độ chính xác)          : {report.precision * 100:6.2f}% ({report.precision:.4f})",
@@ -277,11 +285,18 @@ def format_report_text(report: DetailedEvaluationReport) -> str:
         f"   - False Positive Rate (Tỷ lệ báo giả): {report.false_positive_rate * 100:6.2f}% ({report.false_positive_rate:.4f})",
         f"   - Rule Match Accuracy (Khớp nhãn Rule): {report.rule_match_accuracy * 100:6.2f}% ({report.rule_match_accuracy:.4f})",
         "-" * 78,
-        "3. THỐNG KÊ CÁC RULE GLOBALBAN ĐÃ KÍCH HOẠT:",
+        f"3. THỐNG KÊ CÁC RULE GLOBALBAN ĐÃ KÍCH HOẠT (Tổng: {sum(report.triggered_rule_counts.values()):,} tín hiệu):",
     ]
     if report.triggered_rule_counts:
         for rule_id, cnt in report.triggered_rule_counts.items():
-            lines.append(f"   - {rule_id:<42}: {cnt:,} lần")
+            extra = ""
+            if rule_id == "AUTH-FAILURE-BURST":
+                extra = f" (Level 1: {report.auth_burst_level1_count:,} | Level 2: {report.auth_burst_level2_count:,})"
+            lines.append(f"   - {rule_id:<42}: {cnt:,} lần{extra}")
+        if report.persistence_correlator_count:
+            lines.append(
+                f"   * Chuỗi tương quan logon-process-persistence: {report.persistence_correlator_count:,} lần"
+            )
     else:
         lines.append("   (Không có rule nào được kích hoạt)")
 

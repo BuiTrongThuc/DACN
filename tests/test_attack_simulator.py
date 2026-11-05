@@ -56,15 +56,39 @@ class AttackSimulatorTests(unittest.TestCase):
             cli_alerts = push_xml_to_globalban_cli(
                 xml_path, globalban_root=DEFAULT_GLOBALBAN_ROOT
             )
-            self.assertGreater(len(cli_alerts), 50)
+            self.assertEqual(
+                len(cli_alerts), sum(report.triggered_rule_counts.values())
+            )
 
-    def test_false_positive_noise_increases_fpr_and_lowers_precision(self) -> None:
+    def test_admin_noise_filtered_without_false_positives_by_default(self) -> None:
+        gen = WindowsAttackLogGenerator(seed=99)
+        records = gen.generate_dataset(
+            selected_scenarios=["c2_beaconing"],
+            campaigns_per_scenario=5,
+            benign_count=100,
+            fp_noise_count=20,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            jsonl_path = Path(tmp) / "eval_admin_noise.jsonl"
+            export_dataset_files(records, jsonl_path)
+            report = run_globalban_evaluation(
+                jsonl_path, globalban_root=DEFAULT_GLOBALBAN_ROOT
+            )
+            self.assertEqual(report.false_positive, 0)
+            self.assertEqual(report.false_positive_rate, 0.0)
+            self.assertEqual(report.precision, 1.0)
+            self.assertEqual(report.recall, 1.0)
+            self.assertEqual(report.f1, 1.0)
+            self.assertEqual(report.rule_match_accuracy, 1.0)
+
+    def test_unfiltered_false_positive_noise_increases_fpr_and_lowers_precision(self) -> None:
         gen = WindowsAttackLogGenerator(seed=99)
         records = gen.generate_dataset(
             selected_scenarios=["obfuscation"],
             campaigns_per_scenario=10,
             benign_count=100,
             fp_noise_count=10,
+            unfiltered_fp=True,
         )
         with tempfile.TemporaryDirectory() as tmp:
             jsonl_path = Path(tmp) / "eval_fp.jsonl"

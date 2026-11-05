@@ -1,35 +1,74 @@
 {
   "jsonl_path": "C:\\Users\\Admin\\Desktop\\attack globalban\\output\\simulated_windows_eval.jsonl",
   "xml_path": "C:\\Users\\Admin\\Desktop\\attack globalban\\output\\simulated_windows_events.xml",
-  "total_events": 145,
-  "malicious_events": 25,
-  "benign_events": 120,
+  "total_events": 1117,
+  "malicious_events": 497,
+  "expected_signal_events": 220,
+  "precursor_attack_events": 277,
+  "benign_events": 620,
   "confusion_matrix": {
-    "TP": 5,
-    "FP": 20,
+    "TP": 220,
+    "FP": 0,
     "FN": 0,
-    "TN": 120
+    "TN": 897
   },
   "metrics": {
-    "precision": 0.2,
+    "precision": 1.0,
     "recall": 1.0,
-    "f1_score": 0.333333,
-    "false_positive_rate": 0.142857,
-    "rule_match_accuracy": 0.862069
+    "f1_score": 1.0,
+    "false_positive_rate": 0.0,
+    "rule_match_accuracy": 1.0
   },
   "mitre_technique_counts": {
-    "T1071.001": 25
+    "T1027.010": 8,
+    "T1053.005": 51,
+    "T1059.001": 25,
+    "T1070.001": 25,
+    "T1071.001": 125,
+    "T1098": 50,
+    "T1110.001": 72,
+    "T1110.003": 67,
+    "T1134": 25,
+    "T1543.003": 37,
+    "T1562.002": 12
   },
   "mitre_signal_recall_by_technique": {
-    "T1071.001": 1.0
+    "T1027.010": 1.0,
+    "T1053.005": 1.0,
+    "T1059.001": 1.0,
+    "T1070.001": 1.0,
+    "T1071.001": 1.0,
+    "T1098": 1.0,
+    "T1110.001": 1.0,
+    "T1110.003": 1.0,
+    "T1134": 1.0,
+    "T1543.003": 1.0,
+    "T1562.002": 1.0
   },
   "triggered_rule_counts": {
-    "C2-BEACONING": 5,
-    "PRIVILEGE-CHANGE": 20
+    "AUTH-FAILURE-BURST": 37,
+    "C2-BEACONING": 25,
+    "OBFUSCATED-COMMAND-LINE": 25,
+    "PRIVILEGE-CHANGE": 50,
+    "WINDOWS-4624-4688": 25,
+    "WINDOWS-4624-4688-4698": 17,
+    "WINDOWS-4624-4688-7045": 8,
+    "WINDOWS-4688-1102": 6,
+    "WINDOWS-4688-4104": 8,
+    "WINDOWS-4688-4719": 6,
+    "WINDOWS-4720-4728": 6,
+    "WINDOWS-4720-4728-4704": 6,
+    "WINDOWS-4720-4732": 13,
+    "WINDOWS-4720-4732-4704": 13,
+    "WINDOWS-4720-4756": 6,
+    "WINDOWS-4720-4756-4704": 6,
+    "WINDOWS-7045-1102": 7,
+    "WINDOWS-7045-4719": 6
   },
+  "total_alerts_and_signals": 270,
   "auth_burst_levels": {
-    "level_1": 0,
-    "level_2": 0
+    "level_1": 12,
+    "level_2": 25
   },
-  "persistence_correlator_count": 0
+  "persistence_correlator_count": 25
 }
