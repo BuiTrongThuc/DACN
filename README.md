@@ -1,17 +1,17 @@
 # GlobalBan
 
-GlobalBan is a defensive SSH and Windows behavior monitor. It parses failed
-login events, reads Windows Event Log channels through PowerShell, correlates
-security events into explainable behavior sequences, maintains a small local
-baseline, and can optionally request an AI advisory through a privacy-filtering
-proxy.
+GlobalBan là công cụ giám sát SSH và hành vi trên Windows theo hướng phòng
+thủ. Công cụ phân tích các lần đăng nhập thất bại, đọc các kênh Windows Event
+Log qua PowerShell, liên kết các sự kiện bảo mật thành chuỗi hành vi có thể
+giải thích, duy trì đường cơ sở cục bộ nhỏ và có thể yêu cầu AI tư vấn thông
+qua proxy lọc dữ liệu riêng tư.
 
-## Requirements
+## Yêu cầu
 
-- Python 3.10 or newer
+- Python 3.10 trở lên
 - PyYAML
 
-## Setup
+## Cài đặt
 
 ```powershell
 py -m venv .venv
@@ -21,43 +21,43 @@ Copy-Item .env.example .env
 Copy-Item config\config.example.yaml config\config.yaml
 ```
 
-On Linux/macOS, activate the environment with `source .venv/bin/activate`.
+Trên Linux/macOS, kích hoạt môi trường bằng
+`source .venv/bin/activate`.
 
-On Windows 11, use `py -m venv .venv` and
-`.venv\\Scripts\\Activate.ps1`. The Windows Event Log source uses the built-in
-`powershell.exe`; no extra Windows event package is required.
+Trên Windows 11, dùng `py -m venv .venv` và
+`.venv\\Scripts\\Activate.ps1`. Nguồn Windows Event Log sử dụng
+`powershell.exe` tích hợp sẵn, không cần cài thêm gói sự kiện Windows.
 
-## Configure and run
+## Cấu hình và chạy
 
-Edit `config/config.yaml` and set `ingestion.log_path` to the SSH
-authentication log (`/var/log/auth.log` or `/var/log/secure` on many Linux
-systems). Start in dry-run mode first:
+Chỉnh sửa `config/config.yaml`, đặt `ingestion.log_path` tới nhật ký xác thực
+SSH (`/var/log/auth.log` hoặc `/var/log/secure` trên nhiều hệ thống Linux).
+Trước tiên hãy chạy ở chế độ mô phỏng:
 
 ```powershell
 globalban --config config/config.yaml --dry-run
 ```
 
-The monitor only takes action on failed SSH authentication attempts. It
-aggregates each source IP over the configured time window and applies the
-threshold and allowlist policy. Actual firewall changes are disabled by
-default. To enable them, configure a firewall command for your operating
-system, set `actions.dry_run: false`, and run with the required privileges.
-Review the command and test it on a disposable system before enabling it.
+Công cụ chỉ hành động đối với các lần xác thực SSH thất bại. Công cụ gom nhóm
+địa chỉ IP nguồn trong khoảng thời gian đã cấu hình và áp dụng chính sách
+ngưỡng cùng danh sách cho phép. Theo mặc định, thay đổi tường lửa bị vô hiệu
+hóa. Muốn bật, hãy cấu hình lệnh tường lửa cho hệ điều hành, đặt
+`actions.dry_run: false` và chạy với quyền phù hợp. Hãy xem lại lệnh và thử
+trên hệ thống tạm trước khi bật.
 
-Windows Security Event 4625 XML records are also accepted by the ingestion
-parser. When the configured failure threshold is crossed, the optional AI
-client receives only the masked network and aggregate counts through the
-Ubuntu egress proxy; the raw Windows log is never sent to the API.
+Bản ghi XML Windows Security Event 4625 cũng được bộ phân tích tiếp nhận. Khi
+vượt ngưỡng thất bại đã cấu hình, ứng dụng AI tùy chọn chỉ nhận mạng đã che
+thông tin và các số liệu tổng hợp thông qua proxy Ubuntu; nhật ký Windows thô
+không bao giờ được gửi tới API.
 
-Configuration secrets can be supplied through environment variables; see
-`.env.example`. The application loads `.env` from the current directory or
-repository root when variables are not already set, or you can use your
-process manager's secret mechanism. WhatsApp notifications and the optional AI
-explanation are disabled unless configured.
+Có thể cung cấp bí mật cấu hình qua biến môi trường; xem `.env.example`. Ứng
+dụng tải `.env` từ thư mục hiện tại hoặc thư mục gốc của kho mã nếu biến chưa
+được đặt. Cũng có thể dùng cơ chế quản lý bí mật của trình quản lý tiến trình.
+Thông báo WhatsApp và phần giải thích AI tùy chọn bị tắt nếu chưa cấu hình.
 
-## Windows event monitoring
+## Giám sát sự kiện Windows
 
-To read live Windows channels, configure:
+Để đọc các kênh Windows theo thời gian thực, cấu hình:
 
 ```yaml
 ingestion:
@@ -71,109 +71,112 @@ ingestion:
 		- Microsoft-Windows-Windows Defender/Operational
 ```
 
-Run from an elevated PowerShell when the configured channel requires it:
+Chạy từ PowerShell đã nâng quyền khi kênh được cấu hình yêu cầu:
 
 ```powershell
 globalban --config config/config.yaml --dry-run
 ```
 
-The adapter uses `Get-WinEvent` and does not enable audit policy, install
-Sysmon, or modify Windows. Configure those separately and deliberately. Event
-availability depends on Windows edition, provider configuration, audit policy,
-Sysmon rules, and Defender settings.
+Bộ điều hợp sử dụng `Get-WinEvent`, không bật chính sách kiểm tra, cài Sysmon
+hay thay đổi Windows. Hãy cấu hình riêng và có chủ đích. Khả năng có sẵn của
+sự kiện phụ thuộc vào phiên bản Windows, cấu hình nhà cung cấp, chính sách
+kiểm tra, luật Sysmon và cài đặt Defender.
 
-For a safe fixture replay, use `datasets/windows_events.xmll`. It contains
-documentation IPs and synthetic events only; it does not execute commands or
-perform a real attack. The replay regression test is in
+Để phát lại fixture an toàn, dùng `datasets/windows_events.xmll`. File chỉ
+chứa IP dùng cho tài liệu và sự kiện tổng hợp; không thực thi lệnh hay cuộc
+tấn công thật. Kiểm thử hồi quy phát lại nằm trong
 `tests/test_windows_fixture.py`.
 
-## Detection pipeline
+## Quy trình phát hiện
 
-The implemented pipeline is:
+Quy trình hiện được triển khai:
 
 ```text
-Windows Event Log or fixture file
-	-> normalized WindowsEvent
-	-> duplicate filtering and time-window correlation
-	-> rule-based sequence score and local frequency baseline
-	-> auditable RiskCandidate
-	-> optional Gemini advisory through the Ubuntu egress proxy
-	-> existing dry-run policy/action path for SSH IP candidates
+Windows Event Log hoặc fixture
+	-> WindowsEvent đã chuẩn hóa
+	-> lọc trùng lặp và liên kết theo cửa sổ thời gian
+	-> điểm chuỗi theo luật và đường cơ sở tần suất cục bộ
+	-> RiskCandidate có thể kiểm toán
+	-> tư vấn Gemini tùy chọn qua proxy Ubuntu
+	-> luồng chính sách/hành động mô phỏng hiện có cho ứng viên IP SSH
 ```
 
-The current sequence detector has explainable rules for login/process,
-privilege/process, persistence, audit-log changes, malware alerts, and selected
-PowerShell/Sysmon command indicators. The baseline is a warm-up frequency
-baseline stored in `globalban-baseline.json`; it is not a trained ML model and
-the project does not claim precision, recall, or F1 results without labelled
-data.
+Bộ phát hiện chuỗi hiện có các luật dễ giải thích cho đăng nhập/tiến trình,
+quyền hạn/tiến trình, duy trì bám trụ, thay đổi nhật ký kiểm tra, cảnh báo mã
+độc hại và một số chỉ báo lệnh PowerShell/Sysmon. Đường cơ sở là đường cơ sở
+tần suất trong giai đoạn làm nóng, được lưu tại `globalban-baseline.json`;
+đây không phải mô hình ML đã huấn luyện và dự án không tuyên bố kết quả
+precision, recall hay F1 nếu chưa có dữ liệu gắn nhãn.
 
-Windows authentication events also use a persistent 24-hour behavior detector.
-It covers fast brute force, slow-and-low attempts, periodic automation, password
-spraying, nonexistent-user enumeration, distributed attacks against one user,
-and successful login after repeated failures. Results are emitted as the same
-explainable risk candidates used by the existing policy and audit pipeline.
-The state file is configured by `detection.behavior_state_path`. The detector
-does not bypass the allowlist, dry-run mode, approval gate, or firewall action
-adapter. Windows risk actions are recorded as approval-required until a
-trusted operator explicitly approves them.
+Các sự kiện xác thực Windows cũng dùng bộ phát hiện hành vi liên tục trong 24
+giờ. Bộ phát hiện bao phủ brute force nhanh, tấn công chậm, tự động hóa định
+kỳ, password spraying, dò tài khoản không tồn tại, tấn công phân tán vào một
+người dùng và đăng nhập thành công sau nhiều lần thất bại. Kết quả được phát
+ra dưới dạng các ứng viên rủi ro có thể giải thích giống luồng chính sách và
+kiểm toán hiện có.
 
-The AI receives normalized, allowlisted evidence only. It is called directly
-using the configured external `ai.base_url`; the application does not require
-or silently substitute a localhost API gateway. It returns severity,
-confidence, evidence, hypotheses, optional MITRE ATT&CK references, missing
-data, and human-reviewed recommendations. It cannot execute commands, change
-firewall policy, or decide to block an address.
+File trạng thái được cấu hình bằng `detection.behavior_state_path`. Bộ phát
+hiện không bỏ qua danh sách cho phép, chế độ mô phỏng, cổng phê duyệt hay bộ
+điều hợp hành động tường lửa. Các hành động rủi ro Windows được ghi nhận là
+cần phê duyệt cho tới khi người vận hành tin cậy phê duyệt rõ ràng.
 
-## Twelve-tool agent mapping
+AI chỉ nhận bằng chứng đã chuẩn hóa và nằm trong danh sách cho phép. AI được
+gọi trực tiếp bằng `ai.base_url` bên ngoài đã cấu hình; ứng dụng không yêu cầu
+hay âm thầm thay thế bằng cổng API localhost. Kết quả gồm mức độ nghiêm
+trọng, độ tin cậy, bằng chứng, giả thuyết, tham chiếu MITRE ATT&CK tùy chọn,
+dữ liệu còn thiếu và khuyến nghị do con người xem xét. AI không thể thực thi
+lệnh, thay đổi chính sách tường lửa hay tự quyết định chặn địa chỉ.
 
-The project keeps the requested twelve tools as trusted Python contracts rather
-than twelve independent services. Their current mapping is:
+## Ánh xạ mười hai công cụ của tác nhân
 
-1. Log ingestion/parser: `ingestion/parser.py`, `ingestion/windows_source.py`
-2. Process monitor: `detection/process_monitor.py`
-3. Security collector: `ingestion/windows_source.py`
-4. Behavioral context: `detection/context.py`
-5. Anomaly engine: `detection/aggregator.py`, `detection/baseline.py`, `detection/sequence.py`
-6. Threat intelligence: `threat_intel.py`, disabled unless explicitly configured
-7. Privacy proxy: `proxy.py`, `privacy/`
-8. AI decision engine: `ai/client.py`, `ai/schemas.py`
-9. Policy gate: `policy/gate.py`, `policy/guard.py`
-10. Action enforcer: `actions/enforcer.py`, dry-run action adapter
-11. Audit/rollback: `audit/logger.py`, `audit/rollback.py`
-12. Evaluation/reporting: `evaluation/metrics.py`
+Dự án giữ mười hai công cụ được yêu cầu dưới dạng các hợp đồng Python đáng tin
+cậy thay vì mười hai dịch vụ độc lập. Ánh xạ hiện tại:
 
-`agent/tools.py` exposes an allowlisted catalog and rejects unregistered tools;
-approval-gated tools cannot run without explicit approval. The catalog is ready
-for a provider-specific function-calling loop, but the current AI client remains
-advisory and does not let an LLM execute arbitrary functions.
+1. Tiếp nhận/phân tích nhật ký: `ingestion/parser.py`, `ingestion/windows_source.py`
+2. Giám sát tiến trình: `detection/process_monitor.py`
+3. Thu thập bảo mật: `ingestion/windows_source.py`
+4. Ngữ cảnh hành vi: `detection/context.py`
+5. Động cơ bất thường: `detection/aggregator.py`, `detection/baseline.py`, `detection/sequence.py`
+6. Thông tin tình báo mối đe dọa: `threat_intel.py`, chỉ bật khi cấu hình rõ
+7. Proxy riêng tư: `proxy.py`, `privacy/`
+8. Động cơ quyết định AI: `ai/client.py`, `ai/schemas.py`
+9. Cổng chính sách: `policy/gate.py`, `policy/guard.py`
+10. Bộ thực thi hành động: `actions/enforcer.py`, bộ điều hợp mô phỏng
+11. Kiểm toán/khôi phục: `audit/logger.py`, `audit/rollback.py`
+12. Đánh giá/báo cáo: `evaluation/metrics.py`
 
-## Atomic-EVTX evaluation data
+`agent/tools.py` cung cấp danh mục cho phép và từ chối các công cụ chưa đăng
+ký; công cụ cần phê duyệt không thể chạy nếu chưa được phê duyệt rõ ràng.
+Danh mục đã sẵn sàng cho vòng gọi hàm theo từng nhà cung cấp, nhưng ứng dụng
+AI hiện chỉ tư vấn và không cho LLM thực thi hàm tùy ý.
 
-The external [Atomic-EVTX dataset](https://github.com/arniki/atomic-evtx)
-reports 1,064 Windows 10 attack scenarios across initial access, execution,
-credential access, privilege escalation, persistence, discovery, defense
-evasion, lateral movement, collection, command and control, exfiltration, and
-impact. The project keeps only metadata in
-`datasets/atomic_evtx_manifest.json`; raw EVTX/JSON is not copied into this
-repository because it is large and the source does not expose a clear license.
+## Dữ liệu đánh giá Atomic-EVTX
 
-Download it separately, then load the attack catalog:
+Bộ dữ liệu bên ngoài [Atomic-EVTX](https://github.com/arniki/atomic-evtx)
+báo cáo 1.064 kịch bản tấn công Windows 10 thuộc nhiều nhóm như truy cập ban
+đầu, thực thi, truy cập thông tin xác thực, nâng quyền, duy trì bám trụ, khám
+phá, né tránh phòng thủ, di chuyển ngang, thu thập, điều khiển, lấy dữ liệu và
+phá hoại. Kho mã chỉ giữ siêu dữ liệu tại
+`datasets/atomic_evtx_manifest.json`; không sao chép EVTX/JSON thô vì dữ liệu
+lớn và nguồn không công bố giấy phép rõ ràng.
+
+Tải riêng bộ dữ liệu, sau đó nạp danh mục tấn công:
 
 ```powershell
 python -c "from globalban.evaluation.atomic_catalog import load_atomic_catalog; print(len(load_atomic_catalog(r'C:\\path\\full_list_of_attacks_simulated.csv')))"
 ```
 
-Use the unfiltered logs to test parsing, `atomic_removed` to reduce generator
-artifacts, and `atomic_and_tools_removed` to test behavior-based detection
-without relying on obvious tool names. Do not claim model accuracy until the
-logs are converted to labels and evaluated with the metrics module.
+Dùng nhật ký chưa lọc để kiểm tra phân tích, `atomic_removed` để giảm tạo tác
+của bộ sinh và `atomic_and_tools_removed` để kiểm tra phát hiện dựa trên hành
+vi mà không phụ thuộc vào tên công cụ dễ nhận biết. Không tuyên bố độ chính
+xác của mô hình cho tới khi nhật ký được chuyển thành nhãn và đánh giá bằng
+mô-đun chỉ số.
 
-## Ubuntu egress proxy
+## Proxy Ubuntu cho lưu lượng ra ngoài
 
-The repository includes a standalone allowlist proxy for API requests. It
-accepts only `POST /v1/chat/completions`, rejects extra fields and unmasked IPs,
-then forwards the validated request to the configured upstream API. On Ubuntu:
+Kho mã có proxy danh sách cho phép độc lập cho các yêu cầu API. Proxy chỉ nhận
+`POST /v1/chat/completions`, từ chối trường dư thừa và IP chưa che thông tin,
+sau đó chuyển tiếp yêu cầu đã kiểm tra tới API nguồn. Trên Ubuntu:
 
 ```bash
 python -m pip install -e .
@@ -183,158 +186,61 @@ GLOBALBAN_PROXY_UPSTREAM=https://generativelanguage.googleapis.com/v1beta/openai
 globalban-proxy
 ```
 
-Keep the port restricted with the Ubuntu firewall and set the client API base
-URL to `http://192.168.52.131:8080/v1`. The default bind address is
-`127.0.0.1`; expose it on the LAN only when the firewall permits trusted
-clients. The default upstream is Gemini's OpenAI-compatible endpoint and the
-default model in the example is `gemini-2.5-flash`. Set the key only in the
-Ubuntu environment, never in YAML or source:
+Giới hạn cổng bằng tường lửa Ubuntu và đặt URL cơ sở API phía máy khách là
+`http://192.168.52.131:8080/v1`. Địa chỉ bind mặc định là `127.0.0.1`; chỉ
+mở trong mạng LAN khi tường lửa cho phép các máy khách tin cậy. Mô hình mặc
+định trong ví dụ là `gemini-2.5-flash`. Chỉ đặt khóa trong môi trường Ubuntu,
+không đặt trong YAML hay mã nguồn:
 
 ```bash
 export GLOBALBAN_AI_API_KEY='YOUR_NEW_GEMINI_KEY'
 ```
 
-This proxy filters JSON API bodies, but it is not a transparent HTTPS MITM for
-arbitrary applications.
+Proxy lọc nội dung JSON của API nhưng không phải HTTPS MITM trong suốt cho các
+ứng dụng tùy ý.
 
-## Run tests
+## Chạy kiểm thử
 
 ```powershell
 py -m pytest
 ```
 
-## Desktop app
+## Ứng dụng máy tính
 
-On Windows, launch the dashboard from the activated virtual environment:
+Trên Windows, khởi chạy bảng điều khiển từ môi trường ảo đã kích hoạt:
 
 ```powershell
 globalban-app
 ```
 
-The app starts the existing monitor in dry-run mode, streams its high-signal
-events, and keeps the backend logic unchanged. It does not grant the AI admin
-rights or execute firewall actions from the GUI.
+Ứng dụng khởi chạy bộ giám sát hiện có ở chế độ mô phỏng, hiển thị các sự kiện
+quan trọng và giữ nguyên logic backend. Ứng dụng không cấp quyền quản trị cho
+AI hay thực thi hành động tường lửa từ giao diện.
 
-## Project layout
+## Cấu trúc dự án
 
-- `src/globalban/ingestion`: SSH log parsing and file tailing
-- `src/globalban/detection`: failed-attempt aggregation
-- `src/globalban/detection/baseline.py`: local explainable event baseline
-- `src/globalban/detection/sequence.py`: Windows sequence correlation and risk candidates
-- `src/globalban/detection/process_monitor.py`: process observations and ancestry
-- `src/globalban/detection/context.py`: time-window entity context
-- `src/globalban/policy`: safe-to-block policy checks
-- `src/globalban/policy/gate.py`: approval and rate gates
-- `src/globalban/actions`: firewall action adapter
-- `src/globalban/actions/enforcer.py`: policy-gated action boundary
-- `src/globalban/privacy`: outbound data filtering and IP masking
-- `src/globalban/threat_intel.py`: optional threat-intelligence adapter
-- `src/globalban/agent/tools.py`: allowlisted twelve-tool registry
-- `src/globalban/evaluation/metrics.py`: labeled detection metrics
-- `src/globalban/ai`: optional OpenAI-compatible explanation client
-- `src/globalban/ingestion/windows_source.py`: PowerShell Windows Event Log adapter
-- `src/globalban/audit`: JSON-lines audit log
-- `src/globalban/audit/rollback.py`: TTL-backed rollback records
-- `src/globalban/notifications`: optional WhatsApp notification
-- `datasets/`: small illustrative SSH examples and evaluation records
-- `tests/`: unit tests
+- `src/globalban/ingestion`: phân tích và đọc nối tiếp nhật ký SSH
+- `src/globalban/detection`: gom nhóm các lần thử thất bại
+- `src/globalban/detection/baseline.py`: đường cơ sở sự kiện cục bộ dễ giải thích
+- `src/globalban/detection/sequence.py`: liên kết chuỗi Windows và ứng viên rủi ro
+- `src/globalban/detection/process_monitor.py`: quan sát tiến trình và quan hệ cha-con
+- `src/globalban/detection/context.py`: ngữ cảnh thực thể theo cửa sổ thời gian
+- `src/globalban/policy`: kiểm tra chính sách địa chỉ an toàn để chặn
+- `src/globalban/policy/gate.py`: cổng phê duyệt và giới hạn tốc độ
+- `src/globalban/actions`: bộ điều hợp hành động tường lửa
+- `src/globalban/actions/enforcer.py`: ranh giới hành động theo chính sách
+- `src/globalban/privacy`: lọc dữ liệu gửi đi và che IP
+- `src/globalban/threat_intel.py`: bộ điều hợp tình báo mối đe dọa tùy chọn
+- `src/globalban/agent/tools.py`: danh mục mười hai công cụ được cho phép
+- `src/globalban/evaluation/metrics.py`: chỉ số phát hiện có nhãn
+- `src/globalban/ai`: ứng dụng khách giải thích tùy chọn tương thích OpenAI
+- `src/globalban/ingestion/windows_source.py`: bộ điều hợp Windows Event Log qua PowerShell
+- `src/globalban/audit`: nhật ký kiểm toán dạng JSON Lines
+- `src/globalban/audit/rollback.py`: bản ghi khôi phục có TTL
+- `src/globalban/notifications`: thông báo WhatsApp tùy chọn
+- `datasets/`: ví dụ SSH và bản ghi đánh giá minh họa nhỏ
+- `tests/`: kiểm thử đơn vị
 
-GlobalBan is a learning and defensive administration project, not a substitute
-for a properly managed firewall, intrusion prevention system, or incident
-response process. Validate policy and backups before enabling automatic
-blocking.
-
-## Báo cáo công việc tuần (02/11/2026 - 07/11/2026)
-
-### Nội dung nhóm đã thực hiện
-
-- Nhóm đã bổ sung giám sát Windows Event Log qua PowerShell cho các kênh
-  Security, System, PowerShell, Sysmon và Windows Defender.
-- Nhóm đã chuẩn hóa và tương quan sự kiện Windows thành các chuỗi hành vi có
-  thể giải thích, kết hợp rule-based scoring với local frequency baseline.
-- Nhóm đã bổ sung phát hiện brute force nhanh, slow-and-low, password spraying,
-  dò user không tồn tại, tấn công phân tán và đăng nhập thành công sau nhiều
-  lần thất bại.
-- Nhóm đã hoàn thiện policy gate, approval gate, dry-run, audit và rollback.
-  Hành động rủi ro trên Windows mặc định yêu cầu operator phê duyệt.
-- Nhóm đã bổ sung giao diện desktop để chạy monitor ở chế độ dry-run và theo
-  dõi các sự kiện chính.
-- Nhóm đã xây dựng nền tảng AI advisory cho định hướng phát triển thành AI
-  agent tự động hóa. AI nhận bằng chứng đã chuẩn hóa và allowlist, trả về
-  severity, confidence, evidence, hypothesis, ATT&CK reference và khuyến nghị.
-- Nhóm đã bổ sung egress proxy cho API AI, kiểm tra request, che IP và chặn dữ
-  liệu Windows vượt giới hạn trước khi forward.
-- Nhóm đã tích hợp AD-GEN và WinLOLBIN-GT làm nguồn dữ liệu tham khảo cục bộ
-  cho AI agent. Hệ thống tìm các mẫu tương đồng, đưa cùng log đã chuẩn hóa vào
-  AI để nhận định tình huống, bổ sung ngữ cảnh MITRE ATT&CK và làm cơ sở cho
-  việc tự động đề xuất, quyết định và thực hiện hướng xử lý.
-- Nhóm đã bổ sung tooling phục vụ chuẩn bị dữ liệu WinLOLBIN-GT, đồng thời
-  cập nhật cấu hình, tài liệu, `.gitignore` và các bài test liên quan.
-
-### Kết quả hiện tại
-
-- Commit chính trong tuần là `93e6d56` ngày 04/11/2026:
-  `Add Windows monitoring, AI controls, and dataset tooling`.
-- Pipeline hiện tại là nền tảng cho AI agent: Windows Event Log hoặc fixture ->
-  chuẩn hóa event -> lọc trùng và tương quan theo cửa sổ thời gian -> sequence
-  score/baseline -> `RiskCandidate` -> AI phân tích với dữ liệu tham khảo ->
-  policy/action path hiện có.
-- Có fixture Windows tổng hợp để replay an toàn; fixture không thực thi lệnh và
-  không mô phỏng tấn công thật.
-- AI agent có thể tham chiếu hai nguồn dữ liệu cục bộ là AD-GEN và
-  WinLOLBIN-GT. AD-GEN cung cấp narrative theo process từ Sysmon, còn
-  WinLOLBIN-GT cung cấp các mẫu hành vi LOLBin đã xử lý. Hai nguồn này hỗ trợ
-  AI phân tích log, nhận diện tình huống và lựa chọn hướng xử lý; evidence từ
-  event thực tế vẫn là căn cứ chính.
-- Bộ test dùng `pytest` và có thể chạy bằng `py -m pytest` trong Python 3.10+.
-
-### Khó khăn và phần nhóm đang vướng
-
-- Chưa có dữ liệu EVTX/JSON đã gắn nhãn đầy đủ để đánh giá định lượng
-  precision, recall hoặc F1; hiện mới có metadata Atomic-EVTX và dữ liệu hỗ trợ
-  kiểm thử.
-- Baseline hiện là local frequency baseline trong giai đoạn warm-up, chưa phải
-  mô hình machine learning đã huấn luyện.
-- Việc đọc event thực tế phụ thuộc Windows edition, provider, audit policy,
-  Sysmon rules và Defender settings; một số channel cần PowerShell nâng cao.
-- Bộ WinLOLBIN-GT dung lượng lớn đang có các CSV lớn và file tạm chưa được Git
-  theo dõi; cần quyết định commit trực tiếp, dùng Git LFS hay lưu ngoài
-  repository.
-- AD-GEN có dữ liệu LAB/REAL lớn và phụ thuộc nguồn COMISET; cần thống nhất
-  phạm vi dữ liệu được phép lưu trong repository và cách quản lý license trước
-  khi dùng làm benchmark hoặc phân phối lại.
-- Thư mục `docs/` chưa có tài liệu vận hành riêng; hướng dẫn chính hiện nằm
-  trong README.
-- AI agent chưa hoàn tất vòng function-calling và quyền tự chủ để tự phân tích,
-  quyết định, gọi tool, xử lý sự cố và cập nhật mã nguồn/commit thay cho
-  developer. Đây là phần định hướng phát triển chính của hệ thống.
-
-### Hướng xử lý tiếp theo của nhóm
-
-- Dựng một máy ảo Windows riêng để thực nghiệm các kịch bản red team trong
-  môi trường cô lập và an toàn. Đây là môi trường thực nghiệm bên ngoài,
-  không phải module red-team test được xây dựng trong dự án.
-- Phát triển AI agent theo hướng tự động hóa toàn bộ quy trình: tự tiếp nhận
-  log, phân tích bằng dữ liệu AD-GEN/WinLOLBIN-GT, ra quyết định, gọi các tool
-  allowlist, thực hiện xử lý qua policy/action path và tự tạo commit khi cần;
-  developer chỉ giám sát các trường hợp cần thiết.
-- Chuyển dữ liệu đánh giá sang dạng có label, xây dựng protocol đánh giá và
-  báo cáo metric có thể tái lập.
-- Xác định cách quản lý dataset lớn: loại bỏ file tạm, dùng Git LFS hoặc lưu
-  dataset ở kho riêng.
-- Xác định chính sách lưu trữ và license cho AD-GEN, sau đó bổ sung protocol
-  đánh giá narrative/ATT&CK alignment nếu dùng AD-GEN làm dữ liệu benchmark.
-- Bổ sung tài liệu vận hành trong `docs/`, nhất là cách bật Windows
-  audit/Sysmon/Defender và cách chạy fixture replay.
-- Kiểm thử end-to-end trên máy Windows có event channel thực tế, đồng thời giữ
-  mặc định dry-run và approval-required.
-
-### Tài liệu và tham chiếu
-
-- Hướng dẫn dự án: `README.md`
-- Cấu hình mẫu: `config/config.example.yaml`
-- Dữ liệu tham khảo AD-GEN: `AD-GEN/README.md`
-- Dữ liệu tham khảo WinLOLBIN-GT: `datasets/WinLOLBIN-GT-dataset/README.md`
-- Fixture Windows: `datasets/windows_events.xmll`
-- Test fixture: `tests/test_windows_fixture.py`
-- Commit công việc tuần: `93e6d56`
+GlobalBan là dự án học tập và quản trị phòng thủ, không thay thế cho tường
+lửa, hệ thống ngăn chặn xâm nhập hay quy trình ứng phó sự cố được quản lý
+đúng cách. Hãy kiểm tra chính sách và bản sao lưu trước khi bật chặn tự động.
