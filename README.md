@@ -246,34 +246,30 @@ blocking.
 
 ## Báo cáo công việc tuần (02/11/2026 - 07/11/2026)
 
-### Đã thực hiện
+### Nội dung nhóm đã thực hiện
 
-- Bổ sung giám sát Windows Event Log qua PowerShell cho các kênh Security,
-  System, PowerShell, Sysmon và Windows Defender.
-- Chuẩn hóa và tương quan sự kiện Windows thành các chuỗi hành vi có thể giải
-  thích, kết hợp rule-based scoring với local frequency baseline.
-- Bổ sung phát hiện brute force nhanh, slow-and-low, password spraying, dò user
-  không tồn tại, tấn công phân tán và đăng nhập thành công sau nhiều lần thất
-  bại.
-- Hoàn thiện policy gate, approval gate, dry-run, audit và rollback. Hành động
-  rủi ro trên Windows mặc định yêu cầu operator phê duyệt.
-- Bổ sung giao diện desktop để chạy monitor ở chế độ dry-run và theo dõi sự
-  kiện chính.
-- Hoàn thiện AI advisory: AI chỉ nhận bằng chứng đã chuẩn hóa và allowlist,
+- Nhóm đã bổ sung giám sát Windows Event Log qua PowerShell cho các kênh
+  Security, System, PowerShell, Sysmon và Windows Defender.
+- Nhóm đã chuẩn hóa và tương quan sự kiện Windows thành các chuỗi hành vi có
+  thể giải thích, kết hợp rule-based scoring với local frequency baseline.
+- Nhóm đã bổ sung phát hiện brute force nhanh, slow-and-low, password spraying,
+  dò user không tồn tại, tấn công phân tán và đăng nhập thành công sau nhiều
+  lần thất bại.
+- Nhóm đã hoàn thiện policy gate, approval gate, dry-run, audit và rollback.
+  Hành động rủi ro trên Windows mặc định yêu cầu operator phê duyệt.
+- Nhóm đã bổ sung giao diện desktop để chạy monitor ở chế độ dry-run và theo
+  dõi các sự kiện chính.
+- Nhóm đã hoàn thiện AI advisory: AI nhận bằng chứng đã chuẩn hóa và allowlist,
   trả về severity, confidence, evidence, hypothesis, ATT&CK reference và
   khuyến nghị; AI không tự thực thi lệnh hoặc thay đổi firewall.
-- Bổ sung egress proxy cho API AI, kiểm tra request, che IP và chặn dữ liệu
-  Windows vượt giới hạn trước khi forward.
-- Tích hợp AD-GEN và WinLOLBIN-GT làm nguồn dữ liệu tham khảo cục bộ cho AI
-  advisory. Hệ thống tìm các mẫu tương đồng trong hai nguồn này, đưa cùng log
-  đã chuẩn hóa vào AI để nhận định tình huống, bổ sung narrative/nhãn/ngữ cảnh
-  MITRE ATT&CK và đề xuất hướng xử lý.
-- Bổ sung tooling phục vụ chuẩn bị dữ liệu WinLOLBIN-GT và red-team simulator
-  cho các kịch
-  bản brute force, password spray, PowerShell, persistence, audit clearing và
-  kiểm soát false positive.
-- Cập nhật cấu hình, tài liệu, `.gitignore` và các bài test liên quan đến
-  config, proxy, rollback và sequence detection.
+- Nhóm đã bổ sung egress proxy cho API AI, kiểm tra request, che IP và chặn dữ
+  liệu Windows vượt giới hạn trước khi forward.
+- Nhóm đã tích hợp AD-GEN và WinLOLBIN-GT làm nguồn dữ liệu tham khảo cục bộ
+  cho AI advisory. Hệ thống tìm các mẫu tương đồng, đưa cùng log đã chuẩn hóa
+  vào AI để nhận định tình huống, bổ sung ngữ cảnh MITRE ATT&CK và đề xuất
+  hướng xử lý.
+- Nhóm đã bổ sung tooling phục vụ chuẩn bị dữ liệu WinLOLBIN-GT, đồng thời
+  cập nhật cấu hình, tài liệu, `.gitignore` và các bài test liên quan.
 
 ### Kết quả hiện tại
 
@@ -292,7 +288,7 @@ blocking.
   vẫn phải đi qua policy gate, approval gate và action path hiện có.
 - Bộ test dùng `pytest` và có thể chạy bằng `py -m pytest` trong Python 3.10+.
 
-### Khó khăn và phần đang vướng
+### Khó khăn và phần nhóm đang vướng
 
 - Chưa có dữ liệu EVTX/JSON đã gắn nhãn đầy đủ để đánh giá định lượng
   precision, recall hoặc F1; hiện mới có metadata Atomic-EVTX và dữ liệu hỗ trợ
@@ -313,10 +309,11 @@ blocking.
   function-calling để AI tự gọi tool. Đây là giới hạn có chủ ý nhằm giữ
   approval gate và không cho AI tự thay đổi hệ thống.
 
-### Hướng xử lý tiếp theo
+### Hướng xử lý tiếp theo của nhóm
 
-- Chạy đầy đủ test regression và bổ sung test cho các kịch bản Windows/red-team
-  còn thiếu.
+- Dựng một máy ảo Windows riêng để thực nghiệm các kịch bản red team trong
+  môi trường cô lập và an toàn. Đây là môi trường thực nghiệm bên ngoài,
+  không phải module red-team test được xây dựng trong dự án.
 - Chuyển dữ liệu đánh giá sang dạng có label, xây dựng protocol đánh giá và
   báo cáo metric có thể tái lập.
 - Xác định cách quản lý dataset lớn: loại bỏ file tạm, dùng Git LFS hoặc lưu
