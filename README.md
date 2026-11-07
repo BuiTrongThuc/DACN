@@ -264,11 +264,12 @@ blocking.
   khuyến nghị; AI không tự thực thi lệnh hoặc thay đổi firewall.
 - Bổ sung egress proxy cho API AI, kiểm tra request, che IP và chặn dữ liệu
   Windows vượt giới hạn trước khi forward.
-- Tích hợp nguồn AD-GEN làm knowledge source cục bộ cho AI advisory. AD-GEN
-  cung cấp các narrative theo process, bảo toàn evidence và gắn nhãn MITRE
-  ATT&CK từ telemetry Sysmon; hệ thống chỉ lấy mẫu có giới hạn và không gửi
-  toàn bộ dataset ra API.
-- Bổ sung dataset tooling cho WinLOLBIN-GT và red-team simulator cho các kịch
+- Tích hợp AD-GEN và WinLOLBIN-GT làm nguồn dữ liệu tham khảo cục bộ cho AI
+  advisory. Hệ thống tìm các mẫu tương đồng trong hai nguồn này, đưa cùng log
+  đã chuẩn hóa vào AI để nhận định tình huống, bổ sung narrative/nhãn/ngữ cảnh
+  MITRE ATT&CK và đề xuất hướng xử lý.
+- Bổ sung tooling phục vụ chuẩn bị dữ liệu WinLOLBIN-GT và red-team simulator
+  cho các kịch
   bản brute force, password spray, PowerShell, persistence, audit clearing và
   kiểm soát false positive.
 - Cập nhật cấu hình, tài liệu, `.gitignore` và các bài test liên quan đến
@@ -283,9 +284,12 @@ blocking.
   `RiskCandidate` -> AI advisory tùy chọn -> policy/action path hiện có.
 - Có fixture Windows tổng hợp để replay an toàn; fixture không thực thi lệnh và
   không mô phỏng tấn công thật.
-- AI advisory hiện có thể tham chiếu hai nguồn knowledge cục bộ là AD-GEN và
-  WinLOLBIN-GT để bổ sung narrative, nhãn và ngữ cảnh ATT&CK; các nguồn này
-  chỉ đóng vai trò tham khảo, không thay thế evidence từ event đang phân tích.
+- AI advisory hiện có thể tham chiếu hai nguồn dữ liệu cục bộ là AD-GEN và
+  WinLOLBIN-GT. AD-GEN cung cấp narrative theo process từ Sysmon, còn
+  WinLOLBIN-GT cung cấp các mẫu hành vi LOLBin đã xử lý. Hai nguồn này chỉ
+  đóng vai trò dữ liệu tham khảo để AI phân tích log và nhận diện tình huống;
+  chúng không thay thế evidence từ event đang phân tích. Khuyến nghị của AI
+  vẫn phải đi qua policy gate, approval gate và action path hiện có.
 - Bộ test dùng `pytest` và có thể chạy bằng `py -m pytest` trong Python 3.10+.
 
 ### Khó khăn và phần đang vướng
@@ -328,7 +332,8 @@ blocking.
 
 - Hướng dẫn dự án: `README.md`
 - Cấu hình mẫu: `config/config.example.yaml`
-- Knowledge source AD-GEN: `AD-GEN/README.md`
+- Dữ liệu tham khảo AD-GEN: `AD-GEN/README.md`
+- Dữ liệu tham khảo WinLOLBIN-GT: `datasets/WinLOLBIN-GT-dataset/README.md`
 - Fixture Windows: `datasets/windows_events.xmll`
 - Test fixture: `tests/test_windows_fixture.py`
 - Commit công việc tuần: `93e6d56`
