@@ -13,3 +13,7 @@ globalban-audit.jsonl
 globalban-baseline.json
 globalban-behavior-state.json
 
+
+# Dataset l?n hon gi?i h?n file c?a GitHub
+datasets/WinLOLBIN-GT-dataset/winlolbin_gt_processed_features_10m_plus_2.csv
+datasets/WinLOLBIN-GT-dataset/winlolbin_gt_unprocessed_merged_10m.csv
