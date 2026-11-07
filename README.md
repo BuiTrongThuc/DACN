@@ -243,3 +243,79 @@ GlobalBan is a learning and defensive administration project, not a substitute
 for a properly managed firewall, intrusion prevention system, or incident
 response process. Validate policy and backups before enabling automatic
 blocking.
+
+## Báo cáo công việc tuần (02/11/2026 - 07/11/2026)
+
+### Đã thực hiện
+
+- Bổ sung giám sát Windows Event Log qua PowerShell cho các kênh Security,
+  System, PowerShell, Sysmon và Windows Defender.
+- Chuẩn hóa và tương quan sự kiện Windows thành các chuỗi hành vi có thể giải
+  thích, kết hợp rule-based scoring với local frequency baseline.
+- Bổ sung phát hiện brute force nhanh, slow-and-low, password spraying, dò user
+  không tồn tại, tấn công phân tán và đăng nhập thành công sau nhiều lần thất
+  bại.
+- Hoàn thiện policy gate, approval gate, dry-run, audit và rollback. Hành động
+  rủi ro trên Windows mặc định yêu cầu operator phê duyệt.
+- Bổ sung giao diện desktop để chạy monitor ở chế độ dry-run và theo dõi sự
+  kiện chính.
+- Hoàn thiện AI advisory: AI chỉ nhận bằng chứng đã chuẩn hóa và allowlist,
+  trả về severity, confidence, evidence, hypothesis, ATT&CK reference và
+  khuyến nghị; AI không tự thực thi lệnh hoặc thay đổi firewall.
+- Bổ sung egress proxy cho API AI, kiểm tra request, che IP và chặn dữ liệu
+  Windows vượt giới hạn trước khi forward.
+- Bổ sung dataset tooling cho WinLOLBIN-GT và red-team simulator cho các kịch
+  bản brute force, password spray, PowerShell, persistence, audit clearing và
+  kiểm soát false positive.
+- Cập nhật cấu hình, tài liệu, `.gitignore` và các bài test liên quan đến
+  config, proxy, rollback và sequence detection.
+
+### Kết quả hiện tại
+
+- Commit chính trong tuần là `93e6d56` ngày 04/11/2026:
+  `Add Windows monitoring, AI controls, and dataset tooling`.
+- Pipeline hiện tại: Windows Event Log hoặc fixture -> chuẩn hóa event -> lọc
+  trùng và tương quan theo cửa sổ thời gian -> sequence score/baseline ->
+  `RiskCandidate` -> AI advisory tùy chọn -> policy/action path hiện có.
+- Có fixture Windows tổng hợp để replay an toàn; fixture không thực thi lệnh và
+  không mô phỏng tấn công thật.
+- Bộ test dùng `pytest` và có thể chạy bằng `py -m pytest` trong Python 3.10+.
+
+### Khó khăn và phần đang vướng
+
+- Chưa có dữ liệu EVTX/JSON đã gắn nhãn đầy đủ để đánh giá định lượng
+  precision, recall hoặc F1; hiện mới có metadata Atomic-EVTX và dữ liệu hỗ trợ
+  kiểm thử.
+- Baseline hiện là local frequency baseline trong giai đoạn warm-up, chưa phải
+  mô hình machine learning đã huấn luyện.
+- Việc đọc event thực tế phụ thuộc Windows edition, provider, audit policy,
+  Sysmon rules và Defender settings; một số channel cần PowerShell nâng cao.
+- Bộ WinLOLBIN-GT dung lượng lớn đang có các CSV lớn và file tạm chưa được Git
+  theo dõi; cần quyết định commit trực tiếp, dùng Git LFS hay lưu ngoài
+  repository.
+- Thư mục `docs/` chưa có tài liệu vận hành riêng; hướng dẫn chính hiện nằm
+  trong README.
+- AI hiện chỉ ở vai trò advisory và catalog tool đã allowlist, chưa có vòng
+  function-calling để AI tự gọi tool. Đây là giới hạn có chủ ý nhằm giữ
+  approval gate và không cho AI tự thay đổi hệ thống.
+
+### Hướng xử lý tiếp theo
+
+- Chạy đầy đủ test regression và bổ sung test cho các kịch bản Windows/red-team
+  còn thiếu.
+- Chuyển dữ liệu đánh giá sang dạng có label, xây dựng protocol đánh giá và
+  báo cáo metric có thể tái lập.
+- Xác định cách quản lý dataset lớn: loại bỏ file tạm, dùng Git LFS hoặc lưu
+  dataset ở kho riêng.
+- Bổ sung tài liệu vận hành trong `docs/`, nhất là cách bật Windows
+  audit/Sysmon/Defender và cách chạy fixture replay.
+- Kiểm thử end-to-end trên máy Windows có event channel thực tế, đồng thời giữ
+  mặc định dry-run và approval-required.
+
+### Tài liệu và tham chiếu
+
+- Hướng dẫn dự án: `README.md`
+- Cấu hình mẫu: `config/config.example.yaml`
+- Fixture Windows: `datasets/windows_events.xmll`
+- Test fixture: `tests/test_windows_fixture.py`
+- Commit công việc tuần: `93e6d56`
