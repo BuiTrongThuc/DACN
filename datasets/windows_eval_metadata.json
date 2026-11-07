@@ -1,0 +1,9 @@
+{
+  "dataset": "windows_eval_labels.jsonl",
+  "schema_version": "1.0",
+  "label_policy": "manually reviewed synthetic fixture cases",
+  "source": "GlobalBan checked-in Windows fixture",
+  "filter": "two representative cases: benign login and login-process-persistence",
+  "created_at": "2026-11-07",
+  "production_representative": false
+}

@@ -7,3 +7,5 @@ tiếp theo.
 - [Tuần 01](./tuan-01.md): xây dựng nền tảng giám sát và phát hiện.
 - [Tuần 02](./tuan-02.md): bổ sung Windows monitoring, AI và dữ liệu tham khảo.
 - [Tuần 03](./tuan-03.md): đánh giá có nhãn, vận hành và định hướng AI agent.
+- [Tuần 04](./tuan-04.md): khắc phục đánh giá, audit function-calling và mở
+  rộng AgentRuntime có kiểm soát.

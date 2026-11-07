@@ -50,6 +50,8 @@ The evaluation report contains the exact labels, predictions, confusion
 matrix, precision, recall, F1, and false-positive rate. Do not report these
 sample metrics as production performance; replace the sample cases with
 independently reviewed labels before making a claim.
+The accompanying `datasets/windows_eval_metadata.json` records the schema
+version, source, filter, label policy, and production-representative status.
 
 ## Dataset handling
 
@@ -78,3 +80,5 @@ allowlist, does not execute by default, and reports an explicit failure when a
 handler has not been wired. Enabling execution does not bypass approval for
 tools marked as approval-required. Automatic source changes and Git commits are
 not enabled; they require a reviewed sandbox and an explicit future policy.
+When an `AuditLogger` is supplied, the runtime records `agent.plan` and
+`agent.tool_call` entries, including approval state and tool result.
