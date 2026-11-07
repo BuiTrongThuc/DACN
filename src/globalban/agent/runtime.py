@@ -63,6 +63,13 @@ class AgentRuntime:
             arguments = call.get("arguments", {})
             if not isinstance(name, str) or not isinstance(arguments, Mapping):
                 result = ToolResult(str(name), False, None, "invalid tool call")
+                self._record(
+                    "agent.tool_call",
+                    tool=str(name),
+                    approved=approved,
+                    ok=False,
+                    error=result.error,
+                )
             else:
                 result = self._invoke(name, arguments, approved)
             results.append(result)
