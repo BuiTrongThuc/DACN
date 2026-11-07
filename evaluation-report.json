@@ -1,0 +1,27 @@
+{
+  "cases": 2,
+  "metrics": {
+    "f1": 1.0,
+    "false_negative": 0,
+    "false_positive": 0,
+    "false_positive_rate": 0.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "true_negative": 1,
+    "true_positive": 1
+  },
+  "predictions": [
+    {
+      "case_id": "benign_login",
+      "expected_detected": false,
+      "max_score": 0,
+      "predicted_detected": false
+    },
+    {
+      "case_id": "login_process_persistence",
+      "expected_detected": true,
+      "max_score": 100,
+      "predicted_detected": true
+    }
+  ]
+}

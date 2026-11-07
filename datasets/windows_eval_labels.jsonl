@@ -1,0 +1,2 @@
+{"case_id":"benign_login","expected_detected":false,"events":[{"timestamp":"2025-01-01T00:00:00+00:00","event_id":4624,"fields":{"TargetUserName":"alice"}}]}
+{"case_id":"login_process_persistence","expected_detected":true,"events":[{"timestamp":"2025-01-01T00:00:00+00:00","event_id":4624,"fields":{"TargetUserName":"alice"}},{"timestamp":"2025-01-01T00:00:01+00:00","event_id":4688,"fields":{"SubjectUserName":"alice"}},{"timestamp":"2025-01-01T00:00:02+00:00","event_id":4698,"fields":{"SubjectUserName":"alice"}}]}

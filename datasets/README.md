@@ -6,6 +6,8 @@ they do not contain real credentials or production log data.
 - `ssh_examples.jsonl`: labeled failed/successful SSH events.
 - `ssh_eval.jsonl`: expected aggregation outcomes for two sample source IPs.
 - `windows_events.xmll`: safe Windows sequence fixture for parser/correlation tests.
+- `windows_eval_labels.jsonl`: reviewed sample labels for the reproducible
+  sequence-detection protocol. Run `globalban-evaluate` to create a report.
 - `atomic_evtx_manifest.json`: metadata and import instructions for the external
 	Atomic-EVTX dataset; raw EVTX/JSON is intentionally not vendored here.
 
@@ -19,6 +21,11 @@ permission before redistributing or committing raw logs.
 
 Do not add real authentication logs to version control. Such logs can contain
 usernames, hostnames, and network identifiers.
+
+Large upstream datasets are not runtime dependencies. Keep full downloads
+outside Git (or use an approved Git LFS/artifact store), preserve their
+licenses, and record the exact version and filtering method when producing a
+benchmark. Temporary conversion output must not be committed.
 
 ## Optional AI knowledge sources
 

@@ -17,6 +17,7 @@ dev = ["pytest>=8.0"]
 globalban = "globalban.main:main"
 globalban-proxy = "globalban.proxy:main"
 globalban-app = "globalban.app:main"
+globalban-evaluate = "globalban.evaluation.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
