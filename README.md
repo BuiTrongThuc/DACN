@@ -264,6 +264,10 @@ blocking.
   khuyến nghị; AI không tự thực thi lệnh hoặc thay đổi firewall.
 - Bổ sung egress proxy cho API AI, kiểm tra request, che IP và chặn dữ liệu
   Windows vượt giới hạn trước khi forward.
+- Tích hợp nguồn AD-GEN làm knowledge source cục bộ cho AI advisory. AD-GEN
+  cung cấp các narrative theo process, bảo toàn evidence và gắn nhãn MITRE
+  ATT&CK từ telemetry Sysmon; hệ thống chỉ lấy mẫu có giới hạn và không gửi
+  toàn bộ dataset ra API.
 - Bổ sung dataset tooling cho WinLOLBIN-GT và red-team simulator cho các kịch
   bản brute force, password spray, PowerShell, persistence, audit clearing và
   kiểm soát false positive.
@@ -279,6 +283,9 @@ blocking.
   `RiskCandidate` -> AI advisory tùy chọn -> policy/action path hiện có.
 - Có fixture Windows tổng hợp để replay an toàn; fixture không thực thi lệnh và
   không mô phỏng tấn công thật.
+- AI advisory hiện có thể tham chiếu hai nguồn knowledge cục bộ là AD-GEN và
+  WinLOLBIN-GT để bổ sung narrative, nhãn và ngữ cảnh ATT&CK; các nguồn này
+  chỉ đóng vai trò tham khảo, không thay thế evidence từ event đang phân tích.
 - Bộ test dùng `pytest` và có thể chạy bằng `py -m pytest` trong Python 3.10+.
 
 ### Khó khăn và phần đang vướng
@@ -293,6 +300,9 @@ blocking.
 - Bộ WinLOLBIN-GT dung lượng lớn đang có các CSV lớn và file tạm chưa được Git
   theo dõi; cần quyết định commit trực tiếp, dùng Git LFS hay lưu ngoài
   repository.
+- AD-GEN có dữ liệu LAB/REAL lớn và phụ thuộc nguồn COMISET; cần thống nhất
+  phạm vi dữ liệu được phép lưu trong repository và cách quản lý license trước
+  khi dùng làm benchmark hoặc phân phối lại.
 - Thư mục `docs/` chưa có tài liệu vận hành riêng; hướng dẫn chính hiện nằm
   trong README.
 - AI hiện chỉ ở vai trò advisory và catalog tool đã allowlist, chưa có vòng
@@ -307,6 +317,8 @@ blocking.
   báo cáo metric có thể tái lập.
 - Xác định cách quản lý dataset lớn: loại bỏ file tạm, dùng Git LFS hoặc lưu
   dataset ở kho riêng.
+- Xác định chính sách lưu trữ và license cho AD-GEN, sau đó bổ sung protocol
+  đánh giá narrative/ATT&CK alignment nếu dùng AD-GEN làm dữ liệu benchmark.
 - Bổ sung tài liệu vận hành trong `docs/`, nhất là cách bật Windows
   audit/Sysmon/Defender và cách chạy fixture replay.
 - Kiểm thử end-to-end trên máy Windows có event channel thực tế, đồng thời giữ
@@ -316,6 +328,7 @@ blocking.
 
 - Hướng dẫn dự án: `README.md`
 - Cấu hình mẫu: `config/config.example.yaml`
+- Knowledge source AD-GEN: `AD-GEN/README.md`
 - Fixture Windows: `datasets/windows_events.xmll`
 - Test fixture: `tests/test_windows_fixture.py`
 - Commit công việc tuần: `93e6d56`
