@@ -259,15 +259,15 @@ blocking.
   Hành động rủi ro trên Windows mặc định yêu cầu operator phê duyệt.
 - Nhóm đã bổ sung giao diện desktop để chạy monitor ở chế độ dry-run và theo
   dõi các sự kiện chính.
-- Nhóm đã hoàn thiện AI advisory: AI nhận bằng chứng đã chuẩn hóa và allowlist,
-  trả về severity, confidence, evidence, hypothesis, ATT&CK reference và
-  khuyến nghị; AI không tự thực thi lệnh hoặc thay đổi firewall.
+- Nhóm đã xây dựng nền tảng AI advisory cho định hướng phát triển thành AI
+  agent tự động hóa. AI nhận bằng chứng đã chuẩn hóa và allowlist, trả về
+  severity, confidence, evidence, hypothesis, ATT&CK reference và khuyến nghị.
 - Nhóm đã bổ sung egress proxy cho API AI, kiểm tra request, che IP và chặn dữ
   liệu Windows vượt giới hạn trước khi forward.
 - Nhóm đã tích hợp AD-GEN và WinLOLBIN-GT làm nguồn dữ liệu tham khảo cục bộ
-  cho AI advisory. Hệ thống tìm các mẫu tương đồng, đưa cùng log đã chuẩn hóa
-  vào AI để nhận định tình huống, bổ sung ngữ cảnh MITRE ATT&CK và đề xuất
-  hướng xử lý.
+  cho AI agent. Hệ thống tìm các mẫu tương đồng, đưa cùng log đã chuẩn hóa vào
+  AI để nhận định tình huống, bổ sung ngữ cảnh MITRE ATT&CK và làm cơ sở cho
+  việc tự động đề xuất, quyết định và thực hiện hướng xử lý.
 - Nhóm đã bổ sung tooling phục vụ chuẩn bị dữ liệu WinLOLBIN-GT, đồng thời
   cập nhật cấu hình, tài liệu, `.gitignore` và các bài test liên quan.
 
@@ -275,17 +275,17 @@ blocking.
 
 - Commit chính trong tuần là `93e6d56` ngày 04/11/2026:
   `Add Windows monitoring, AI controls, and dataset tooling`.
-- Pipeline hiện tại: Windows Event Log hoặc fixture -> chuẩn hóa event -> lọc
-  trùng và tương quan theo cửa sổ thời gian -> sequence score/baseline ->
-  `RiskCandidate` -> AI advisory tùy chọn -> policy/action path hiện có.
+- Pipeline hiện tại là nền tảng cho AI agent: Windows Event Log hoặc fixture ->
+  chuẩn hóa event -> lọc trùng và tương quan theo cửa sổ thời gian -> sequence
+  score/baseline -> `RiskCandidate` -> AI phân tích với dữ liệu tham khảo ->
+  policy/action path hiện có.
 - Có fixture Windows tổng hợp để replay an toàn; fixture không thực thi lệnh và
   không mô phỏng tấn công thật.
-- AI advisory hiện có thể tham chiếu hai nguồn dữ liệu cục bộ là AD-GEN và
+- AI agent có thể tham chiếu hai nguồn dữ liệu cục bộ là AD-GEN và
   WinLOLBIN-GT. AD-GEN cung cấp narrative theo process từ Sysmon, còn
-  WinLOLBIN-GT cung cấp các mẫu hành vi LOLBin đã xử lý. Hai nguồn này chỉ
-  đóng vai trò dữ liệu tham khảo để AI phân tích log và nhận diện tình huống;
-  chúng không thay thế evidence từ event đang phân tích. Khuyến nghị của AI
-  vẫn phải đi qua policy gate, approval gate và action path hiện có.
+  WinLOLBIN-GT cung cấp các mẫu hành vi LOLBin đã xử lý. Hai nguồn này hỗ trợ
+  AI phân tích log, nhận diện tình huống và lựa chọn hướng xử lý; evidence từ
+  event thực tế vẫn là căn cứ chính.
 - Bộ test dùng `pytest` và có thể chạy bằng `py -m pytest` trong Python 3.10+.
 
 ### Khó khăn và phần nhóm đang vướng
@@ -305,15 +305,19 @@ blocking.
   khi dùng làm benchmark hoặc phân phối lại.
 - Thư mục `docs/` chưa có tài liệu vận hành riêng; hướng dẫn chính hiện nằm
   trong README.
-- AI hiện chỉ ở vai trò advisory và catalog tool đã allowlist, chưa có vòng
-  function-calling để AI tự gọi tool. Đây là giới hạn có chủ ý nhằm giữ
-  approval gate và không cho AI tự thay đổi hệ thống.
+- AI agent chưa hoàn tất vòng function-calling và quyền tự chủ để tự phân tích,
+  quyết định, gọi tool, xử lý sự cố và cập nhật mã nguồn/commit thay cho
+  developer. Đây là phần định hướng phát triển chính của hệ thống.
 
 ### Hướng xử lý tiếp theo của nhóm
 
 - Dựng một máy ảo Windows riêng để thực nghiệm các kịch bản red team trong
   môi trường cô lập và an toàn. Đây là môi trường thực nghiệm bên ngoài,
   không phải module red-team test được xây dựng trong dự án.
+- Phát triển AI agent theo hướng tự động hóa toàn bộ quy trình: tự tiếp nhận
+  log, phân tích bằng dữ liệu AD-GEN/WinLOLBIN-GT, ra quyết định, gọi các tool
+  allowlist, thực hiện xử lý qua policy/action path và tự tạo commit khi cần;
+  developer chỉ giám sát các trường hợp cần thiết.
 - Chuyển dữ liệu đánh giá sang dạng có label, xây dựng protocol đánh giá và
   báo cáo metric có thể tái lập.
 - Xác định cách quản lý dataset lớn: loại bỏ file tạm, dùng Git LFS hoặc lưu
