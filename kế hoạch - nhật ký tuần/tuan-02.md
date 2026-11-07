@@ -1,6 +1,6 @@
 # Báo cáo công việc tuần 02
 
-**Thời gian:** 26/10/2026 - 01/11/2026
+**Thời gian:** 19/10/2026 - 24/10/2026
 **Dự án:** GlobalBan - hệ thống giám sát SSH và hành vi Windows
 **Người thực hiện:** Nhóm sinh viên
 
