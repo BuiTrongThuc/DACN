@@ -1,0 +1,2 @@
+{"case_id":"baseline-day-01","rule_id":"sigma-rule-id-or-none","predicted_detected":false,"match_count":0,"notes":"Replace with the real Sigma result."}
+{"case_id":"atomic-T1059-001-test-01","rule_id":"sigma-rule-id","predicted_detected":true,"match_count":1,"notes":"Replace with the real Sigma result."}

@@ -1,0 +1,11 @@
+artifacts/**/*.evtx
+artifacts/**/*.json
+artifacts/**/*.csv
+metadata/cases.jsonl
+metadata/sigma-results.jsonl
+metadata/environment.json
+*.zip
+*.7z
+*.rar
+.env
+.vscode/settings.json
