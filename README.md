@@ -1,29 +1,32 @@
-# Red Team Windows Collector
+# Bộ thu thập dữ liệu Windows cho Red Team
 
-This repository is for authorized collection on an isolated Windows VM. It is separate from the detection project so the Red Team can clone it on the test machine.
+Kho lưu trữ này phục vụ việc thu thập dữ liệu đã được phê duyệt trên máy ảo
+Windows cô lập. Kho được tách khỏi dự án phát hiện để đội Red Team có thể sao
+chép vào máy kiểm thử.
 
-## Clone and open in VS Code
+## Sao chép và mở bằng VS Code
 
 ```powershell
-git clone <GITHUB_URL>
-cd redteam-windows-collector
+git clone https://github.com/BuiTrongThuc/DACN.git
+cd DACN
 code .
 ```
 
-Open a PowerShell terminal in VS Code. Run only tests approved by the project supervisor. Do not run this repository on production systems.
+Mở terminal PowerShell trong VS Code. Chỉ chạy các bài kiểm thử đã được người
+phụ trách dự án phê duyệt. Không chạy kho này trên hệ thống sản xuất.
 
-## Red Team workflow
+## Quy trình Red Team
 
-Run the environment check before collecting data:
+Chạy kiểm tra môi trường trước khi thu thập dữ liệu:
 
 ```powershell
 .\scripts\preflight.ps1
 ```
 
-Collect baseline snapshots for several normal days. Before each approved
-Atomic Red Team test, use a unique case ID and record the technique and test
-number. The wrapper requires an explicit approval flag, records UTC times, and
-collects the EVTX files after the test:
+Thu thập ảnh chụp đường cơ sở trong một vài ngày hoạt động bình thường. Trước
+mỗi bài kiểm thử Atomic Red Team đã được phê duyệt, hãy dùng mã ca duy nhất và
+ghi lại kỹ thuật cùng số bài kiểm thử. Bộ bao yêu cầu cờ phê duyệt rõ ràng, ghi
+thời gian UTC và thu thập các tệp EVTX sau khi kiểm thử:
 
 ```powershell
 .\scripts\run_approved_atomic.ps1 `
@@ -33,43 +36,50 @@ collects the EVTX files after the test:
 	-Approved
 ```
 
-Only use the exact technique and test number approved by the supervisor.
+Chỉ sử dụng đúng kỹ thuật và số bài kiểm thử đã được người phụ trách phê duyệt.
 
-## Collect Windows logs
+## Thu thập nhật ký Windows
 
-Open PowerShell with the permissions required by the event channels:
+Mở PowerShell với quyền cần thiết cho các kênh sự kiện:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\scripts\collect_windows_logs.ps1 -CaseId baseline-day-01 -Kind baseline
 ```
 
-After an approved Atomic Red Team test:
+Sau một bài kiểm thử Atomic Red Team đã được phê duyệt:
 
 ```powershell
 .\scripts\collect_windows_logs.ps1 -CaseId atomic-T1059-001-test-01 -Kind atomic
 ```
 
-The script exports EVTX files and SHA256 hashes under `artifacts/`. It does not execute an attack and does not change Windows audit policy.
+Tập lệnh xuất các tệp EVTX và mã băm SHA256 vào `artifacts/`. Tập lệnh không
+thực hiện tấn công và không thay đổi chính sách kiểm tra Windows.
 
-## Record cases
+## Ghi nhận ca kiểm thử
 
-Copy `metadata/cases.example.jsonl` to `metadata/cases.jsonl` and replace the example values with real values. Copy `metadata/sigma-results.example.jsonl` to `metadata/sigma-results.jsonl` and record Sigma results for the same case IDs. Record one line per baseline or Atomic Red Team case. Do not record passwords, tokens, private keys, or full command secrets.
+Sao chép `metadata/cases.example.jsonl` thành `metadata/cases.jsonl` rồi thay
+giá trị mẫu bằng giá trị thực tế. Sao chép
+`metadata/sigma-results.example.jsonl` thành `metadata/sigma-results.jsonl` và
+ghi kết quả Sigma cho cùng các mã ca. Ghi một dòng cho mỗi ca đường cơ sở hoặc
+Atomic Red Team. Không ghi mật khẩu, token, khóa riêng tư hoặc toàn bộ bí mật
+của lệnh.
 
-After all cases and hashes are present, validate the handoff:
+Sau khi đã có đầy đủ ca kiểm thử và mã băm, hãy kiểm tra việc bàn giao:
 
 ```powershell
 .\scripts\validate_handoff.ps1
 ```
 
-Send the other team:
+Gửi cho đội còn lại:
 
 - `artifacts/baseline/<case-id>/*.evtx`
 - `artifacts/atomic/<case-id>/*.evtx`
 - `artifacts/hashes/*.csv`
 - `metadata/cases.jsonl`
-- Windows, Sysmon and PowerShell versions
-- The approved Atomic test ID and its start/end times
-- Sigma results using the same case IDs
+- Phiên bản Windows, Sysmon và PowerShell
+- Mã bài kiểm thử Atomic đã phê duyệt cùng thời gian bắt đầu/kết thúc
+- Kết quả Sigma dùng cùng các mã ca
 
-EVTX and real metadata are ignored by Git. Transfer them separately through the agreed secure channel; do not commit them to GitHub.
+EVTX và siêu dữ liệu thực tế được Git bỏ qua. Hãy chuyển chúng riêng qua kênh
+bảo mật đã thống nhất; không commit chúng lên GitHub.
