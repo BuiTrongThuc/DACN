@@ -1,6 +1,7 @@
 """Reproducible binary detection metrics without inventing labels."""
 
 from dataclasses import dataclass
+from typing import Mapping
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,3 +31,13 @@ def evaluate_binary(expected: list[bool], predicted: list[bool]) -> DetectionMet
         true_positive, false_positive, false_negative, true_negative,
         precision, recall, f1, false_positive_rate,
     )
+
+
+def compare_methods(
+    expected: list[bool], predictions: Mapping[str, list[bool]]
+) -> dict[str, DetectionMetrics]:
+    """Evaluate multiple detectors against the same ground-truth labels."""
+    return {
+        name: evaluate_binary(expected, predicted)
+        for name, predicted in predictions.items()
+    }

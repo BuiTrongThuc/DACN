@@ -1,10 +1,11 @@
 # GlobalBan
 
-GlobalBan là công cụ giám sát SSH và hành vi trên Windows theo hướng phòng
-thủ. Công cụ phân tích các lần đăng nhập thất bại, đọc các kênh Windows Event
-Log qua PowerShell, liên kết các sự kiện bảo mật thành chuỗi hành vi có thể
-giải thích, duy trì đường cơ sở cục bộ nhỏ và có thể yêu cầu AI tư vấn thông
-qua proxy lọc dữ liệu riêng tư.
+GlobalBan là công cụ phát hiện hành vi bất thường trên Windows theo hướng
+phòng thủ và có thể giải thích. Công cụ đọc Windows Event Log qua PowerShell,
+xây dựng đường cơ sở theo từng người dùng và máy, liên kết các sự kiện bảo
+mật thành chuỗi hành vi, rồi tạo bằng chứng để agent giải thích vì sao một
+hoạt động lệch khỏi thói quen. Phần SSH được giữ để tương thích với mã cũ,
+nhưng không còn là trọng tâm đánh giá của đề tài.
 
 ## Yêu cầu
 
@@ -30,20 +31,17 @@ Trên Windows 11, dùng `py -m venv .venv` và
 
 ## Cấu hình và chạy
 
-Chỉnh sửa `config/config.yaml`, đặt `ingestion.log_path` tới nhật ký xác thực
-SSH (`/var/log/auth.log` hoặc `/var/log/secure` trên nhiều hệ thống Linux).
-Trước tiên hãy chạy ở chế độ mô phỏng:
+Chỉnh sửa `config/config.yaml`, đặt `ingestion.source: windows_event_log` và
+cấu hình các kênh Windows cần thu thập. Trước tiên hãy chạy ở chế độ mô
+phỏng:
 
 ```powershell
 globalban --config config/config.yaml --dry-run
 ```
 
-Công cụ chỉ hành động đối với các lần xác thực SSH thất bại. Công cụ gom nhóm
-địa chỉ IP nguồn trong khoảng thời gian đã cấu hình và áp dụng chính sách
-ngưỡng cùng danh sách cho phép. Theo mặc định, thay đổi tường lửa bị vô hiệu
-hóa. Muốn bật, hãy cấu hình lệnh tường lửa cho hệ điều hành, đặt
-`actions.dry_run: false` và chạy với quyền phù hợp. Hãy xem lại lệnh và thử
-trên hệ thống tạm trước khi bật.
+Theo mặc định, thay đổi tường lửa bị vô hiệu hóa. Muốn bật, hãy cấu hình lệnh
+tường lửa cho hệ điều hành, đặt `actions.dry_run: false` và chạy với quyền
+phù hợp. Hãy xem lại lệnh và thử trên hệ thống tạm trước khi bật.
 
 Bản ghi XML Windows Security Event 4625 cũng được bộ phân tích tiếp nhận. Khi
 vượt ngưỡng thất bại đã cấu hình, ứng dụng AI tùy chọn chỉ nhận mạng đã che
@@ -95,7 +93,7 @@ Quy trình hiện được triển khai:
 Windows Event Log hoặc fixture
 	-> WindowsEvent đã chuẩn hóa
 	-> lọc trùng lặp và liên kết theo cửa sổ thời gian
-	-> điểm chuỗi theo luật và đường cơ sở tần suất cục bộ
+	-> điểm chuỗi theo luật và đường cơ sở user/máy
 	-> RiskCandidate có thể kiểm toán
 	-> tư vấn Gemini tùy chọn qua proxy Ubuntu
 	-> luồng chính sách/hành động mô phỏng hiện có cho ứng viên IP SSH
@@ -104,7 +102,8 @@ Windows Event Log hoặc fixture
 Bộ phát hiện chuỗi hiện có các luật dễ giải thích cho đăng nhập/tiến trình,
 quyền hạn/tiến trình, duy trì bám trụ, thay đổi nhật ký kiểm tra, cảnh báo mã
 độc hại và một số chỉ báo lệnh PowerShell/Sysmon. Đường cơ sở là đường cơ sở
-tần suất trong giai đoạn làm nóng, được lưu tại `globalban-baseline.json`;
+tần suất theo user/máy trong giai đoạn làm nóng, được lưu tại
+`globalban-baseline.json`;
 đây không phải mô hình ML đã huấn luyện và dự án không tuyên bố kết quả
 precision, recall hay F1 nếu chưa có dữ liệu gắn nhãn.
 
@@ -171,6 +170,25 @@ của bộ sinh và `atomic_and_tools_removed` để kiểm tra phát hiện d�
 vi mà không phụ thuộc vào tên công cụ dễ nhận biết. Không tuyên bố độ chính
 xác của mô hình cho tới khi nhật ký được chuyển thành nhãn và đánh giá bằng
 mô-đun chỉ số.
+
+## Kế hoạch đo lường và so sánh Sigma
+
+Tập đánh giá cần có hai phần: nhiều ngày log Windows bình thường để làm
+baseline, và các phiên log có nhãn bất thường. Mỗi phiên nên ghi `case_id`,
+thời gian, host, user, các event Windows và `expected_detected`. Chạy bộ đánh
+giá bằng:
+
+```powershell
+globalban-evaluate --labels path\to\windows_eval.jsonl --output evaluation-report.json
+```
+
+Trên chính các case đó, chạy các luật Sigma tương ứng rồi ghi kết quả vào bảng
+so sánh gồm true positive, false positive, false negative, precision, recall,
+F1, false-positive rate và thời gian phát hiện. Hiện repo đã có parser, baseline,
+detector và module metrics; chưa ghi số đo thật khi chưa có log Windows đã gắn
+nhãn. Nhóm Red Team cần bàn giao sau: danh sách kỹ thuật đã chạy, thời điểm
+bắt đầu/kết thúc, host/user sử dụng, log thu được và kết quả Sigma trên cùng
+tập test.
 
 ## Proxy Ubuntu cho lưu lượng ra ngoài
 

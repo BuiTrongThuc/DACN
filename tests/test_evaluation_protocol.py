@@ -1,6 +1,7 @@
 import json
 
 from globalban.evaluation.protocol import evaluate_cases, load_labeled_cases
+from globalban.evaluation.metrics import compare_methods
 
 
 def test_labeled_protocol_reproduces_fixture_metrics(tmp_path):
@@ -50,3 +51,18 @@ def test_labeled_protocol_reproduces_fixture_metrics(tmp_path):
     assert report.metrics.precision == 1.0
     assert report.metrics.recall == 1.0
     assert report.metrics.f1 == 1.0
+
+
+def test_compare_methods_uses_the_same_ground_truth():
+    expected = [True, False, True, False]
+
+    report = compare_methods(
+        expected,
+        {
+            "behavior_baseline": [True, False, False, False],
+            "sigma": [True, True, True, False],
+        },
+    )
+
+    assert report["behavior_baseline"].recall == 0.5
+    assert report["sigma"].precision == 2 / 3
