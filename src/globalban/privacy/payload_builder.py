@@ -36,6 +36,9 @@ def build_windows_event_payload(event: WindowsEvent) -> dict[str, object]:
 def build_risk_payload(candidate: RiskCandidate) -> dict[str, object]:
     return {
         "event_type": "windows_behavior_risk",
+        "host": candidate.host,
+        "username": candidate.username,
+        "timestamp": candidate.timestamp.isoformat(),
         "risk_score": candidate.score,
         "event_ids": list(candidate.event_ids),
         "reasons": list(candidate.reasons),

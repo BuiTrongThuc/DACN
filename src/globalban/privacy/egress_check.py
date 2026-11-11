@@ -10,7 +10,16 @@ ALLOWED_WINDOWS_FIELDS = frozenset(
     {"event_id", "event_type", "priority", "provider", "fields"}
 )
 ALLOWED_RISK_FIELDS = frozenset(
-    {"event_type", "risk_score", "event_ids", "reasons", "source_network"}
+    {
+        "event_type",
+        "host",
+        "username",
+        "timestamp",
+        "risk_score",
+        "event_ids",
+        "reasons",
+        "source_network",
+    }
 )
 ALLOWED_WINDOW_METADATA_FIELDS = frozenset(
     {"TargetUserName", "SubjectUserName", "ServiceName", "TaskName"}
@@ -84,6 +93,10 @@ def validate_risk_payload(payload: Mapping[str, object]) -> None:
     reasons = payload["reasons"]
     if not isinstance(reasons, list) or not all(isinstance(item, str) for item in reasons):
         raise ValueError("reasons must be a list of strings")
+    for field in ("host", "username", "timestamp"):
+        value = payload[field]
+        if not isinstance(value, str) or not value or len(value) > 256:
+            raise ValueError(f"{field} must be a non-empty string of at most 256 characters")
     source_network = payload["source_network"]
     if source_network is not None:
         _validate_masked_network(source_network)

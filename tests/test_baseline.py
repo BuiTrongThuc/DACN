@@ -41,3 +41,31 @@ def test_baseline_persists_profile_signals(tmp_path):
 
     restored = BehaviorBaseline(path=str(path), warmup_events=1)
     assert restored.observe(event) == (0, None)
+
+
+def test_frozen_baseline_scores_test_events_without_learning(tmp_path):
+    baseline = BehaviorBaseline(path=str(tmp_path / "baseline.json"), warmup_events=1)
+    baseline.fit(
+        [
+            make_event(host="WIN-01", user="alice", hour=9, executable="explorer.exe"),
+            make_event(host="WIN-01", user="alice", hour=10, executable="explorer.exe"),
+        ]
+    )
+
+    score, reason = baseline.score(
+        make_event(host="WIN-01", user="alice", hour=2, executable="powershell.exe")
+    )
+
+    assert baseline.frozen is True
+    assert score == 30
+    assert reason is not None
+    assert "first-seen activity hour" in reason
+    assert "first-seen executable" in reason
+
+    baseline.observe(
+        make_event(host="WIN-01", user="alice", hour=2, executable="powershell.exe")
+    )
+    repeat_score, _ = baseline.score(
+        make_event(host="WIN-01", user="alice", hour=2, executable="powershell.exe")
+    )
+    assert repeat_score == 30

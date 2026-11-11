@@ -119,6 +119,16 @@ hiện không bỏ qua danh sách cho phép, chế độ mô phỏng, cổng ph�
 điều hợp hành động tường lửa. Các hành động rủi ro Windows được ghi nhận là
 cần phê duyệt cho tới khi người vận hành tin cậy phê duyệt rõ ràng.
 
+Đối với đánh giá trên dữ liệu thật, đường cơ sở phải được học trước từ các
+EVTX bình thường đã được kiểm tra, sau đó đóng băng trước khi đọc các ca
+Atomic Red Team. Có thể dùng `BehaviorBaseline.fit(...)` để học và
+`BehaviorBaseline.score(...)` để chấm điểm mà không làm nhiễm đường cơ sở bởi
+dữ liệu kiểm thử. EVTX được thu trên VM có thể đọc offline trên máy phân tích
+bằng `globalban.ingestion.evtx.read_evtx_events`; hàm này dùng
+`Get-WinEvent -Path` của Windows và không sửa file nguồn. Payload giải thích
+của agent bao gồm host, user, thời gian, điểm và các lý do đã chuẩn hóa, giúp
+giải thích đúng hành vi lệch khỏi hồ sơ của từng user trên từng máy.
+
 AI chỉ nhận bằng chứng đã chuẩn hóa và nằm trong danh sách cho phép. AI được
 gọi trực tiếp bằng `ai.base_url` bên ngoài đã cấu hình; ứng dụng không yêu cầu
 hay âm thầm thay thế bằng cổng API localhost. Kết quả gồm mức độ nghiêm
