@@ -1,19 +1,32 @@
+"""
+tests.test_attack_simulator
+===========================
+Unit tests for the modular GlobalBan Red-Team simulation & evaluation suite.
+Tests full pipeline across all scenarios, admin noise FPR filtering, UEBA 7-day profiling,
+and WinLOLBIN-GT living-off-the-land benchmark with zero external dependencies.
+"""
+
+from __future__ import annotations
+
+import tempfile
 import unittest
 from pathlib import Path
-import tempfile
 
+from attack_simulator.engine import BuiltinGlobalBanEngine, BuiltinUEBAEngine
 from attack_simulator.evaluator import (
     DEFAULT_GLOBALBAN_ROOT,
     push_xml_to_globalban_cli,
     run_globalban_evaluation,
     run_lolbin_evaluation,
     run_ueba_evaluation,
+    run_unified_evaluation,
 )
-from attack_simulator.scenarios import (
-    SCENARIO_CATALOG,
+from attack_simulator.generator import (
     WindowsAttackLogGenerator,
     export_dataset_files,
+    generate_ueba_baseline_and_test_datasets,
 )
+from attack_simulator.models import SCENARIO_CATALOG
 
 
 class AttackSimulatorTests(unittest.TestCase):
@@ -139,4 +152,3 @@ class AttackSimulatorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
