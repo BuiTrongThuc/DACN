@@ -45,8 +45,11 @@ class AttackSimulatorGUI:
         self.globalban_root = globalban_root
         self.last_xml_path: Path | None = None
         self.last_jsonl_path: Path | None = None
+        self.last_report: DetailedEvaluationReport | None = None
 
         self.scenario_vars: dict[str, tk.BooleanVar] = {}
+        self.ueba_var = tk.BooleanVar(value=True)
+        self.lolbin_var = tk.BooleanVar(value=True)
         self.campaigns_var = tk.IntVar(value=20)
         self.benign_var = tk.IntVar(value=600)
         self.fp_noise_var = tk.IntVar(value=0)
@@ -91,17 +94,37 @@ class AttackSimulatorGUI:
             )
             chk.grid(row=idx // 2, column=idx % 2, sticky=tk.W, padx=8, pady=4)
 
+        ttk.Checkbutton(
+            scenarios_frame,
+            text="7. UEBA 7-Day Baseline & Atomic Red Team  [UEBA-BEHAVIOR-DEVIATION]",
+            variable=self.ueba_var,
+        ).grid(row=3, column=0, sticky=tk.W, padx=8, pady=4)
+
+        ttk.Checkbutton(
+            scenarios_frame,
+            text="8. WinLOLBIN-GT Living Off The Land  [LOLBIN-ABUSE]",
+            variable=self.lolbin_var,
+        ).grid(row=3, column=1, sticky=tk.W, padx=8, pady=4)
+
         btn_row = ttk.Frame(scenarios_frame)
-        btn_row.grid(row=3, column=0, columnspan=2, sticky=tk.W, padx=8, pady=(6, 0))
+        btn_row.grid(row=4, column=0, columnspan=2, sticky=tk.W, padx=8, pady=(6, 0))
         ttk.Button(
             btn_row,
             text="Chọn tất cả",
-            command=lambda: [v.set(True) for v in self.scenario_vars.values()],
+            command=lambda: (
+                [v.set(True) for v in self.scenario_vars.values()],
+                self.ueba_var.set(True),
+                self.lolbin_var.set(True),
+            ),
         ).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(
             btn_row,
             text="Bỏ chọn tất cả",
-            command=lambda: [v.set(False) for v in self.scenario_vars.values()],
+            command=lambda: (
+                [v.set(False) for v in self.scenario_vars.values()],
+                self.ueba_var.set(False),
+                self.lolbin_var.set(False),
+            ),
         ).pack(side=tk.LEFT)
 
         # Parameters panel
@@ -284,7 +307,11 @@ class AttackSimulatorGUI:
                 jsonl_path=jsonl_path,
                 xml_path=xml_path,
                 globalban_root=self.globalban_root,
+                evaluate_ueba=bool(self.ueba_var.get()),
+                evaluate_lolbin=bool(self.lolbin_var.get()),
+                output_dir=self.output_dir,
             )
+            self.last_report = report
             report_json_path.write_text(
                 json.dumps(report.to_dict(), indent=2, ensure_ascii=False),
                 encoding="utf-8",
@@ -332,19 +359,45 @@ class AttackSimulatorGUI:
         if self.last_xml_path is None:
             return
         try:
-            alerts = push_xml_to_globalban_cli(
-                self.last_xml_path, globalban_root=self.globalban_root
+            baseline_xml = (
+                self.last_report.ueba_baseline_xml_path
+                if self.last_report is not None
+                else None
             )
+            profile_json = (
+                self.last_report.ueba_profile_json_path
+                if self.last_report is not None
+                else None
+            )
+            alerts = push_xml_to_globalban_cli(
+                self.last_xml_path,
+                globalban_root=self.globalban_root,
+                learn_baseline_xml=baseline_xml,
+                profile_path=profile_json,
+            )
+            ueba_alerts: list[dict[str, object]] = []
+            if (
+                self.last_report is not None
+                and self.last_report.ueba_test_xml_path is not None
+                and self.last_report.ueba_test_xml_path.is_file()
+            ):
+                ueba_alerts = push_xml_to_globalban_cli(
+                    self.last_report.ueba_test_xml_path,
+                    globalban_root=self.globalban_root,
+                    learn_baseline_xml=baseline_xml,
+                    profile_path=profile_json,
+                )
+            total_alerts = len(alerts) + len(ueba_alerts)
             self.report_text.insert(
                 tk.END,
-                f"\n\n[GLOBALBAN CLI --windows-xml OUTPUT]: Bắt được {len(alerts)} bản ghi cảnh báo JSON.\n",
+                f"\n\n[GLOBALBAN CLI --windows-xml OUTPUT]: Bắt được {len(alerts)} bản ghi cảnh báo 6 kịch bản + {len(ueba_alerts)} bản ghi UEBA/Atomic.\n",
             )
-            for item in alerts[:15]:
+            for item in (alerts[:10] + ueba_alerts[:10]):
                 self.report_text.insert(tk.END, f"  {item}\n")
             messagebox.showinfo(
                 "Đã bắn Log XML vào GlobalBan",
-                f"Đã đẩy file {self.last_xml_path.name} vào GlobalBan CLI.\n"
-                f"GlobalBan đã phát hiện và xuất ra {len(alerts)} bản ghi cảnh báo/tín hiệu!",
+                f"Đã đẩy file {self.last_xml_path.name} (kèm UEBA Baseline 7 ngày) vào GlobalBan CLI.\n"
+                f"GlobalBan đã phát hiện và xuất ra tổng cộng {total_alerts} bản ghi cảnh báo/tín hiệu!",
                 parent=self.root,
             )
         except Exception as exc:
@@ -359,6 +412,24 @@ class AttackSimulatorGUI:
         demo_config = self.globalban_root / "config" / "demo.config.json"
         if demo_config.is_file():
             cmd.extend(["--config", str(demo_config)])
+        if self.last_report is not None:
+            if (
+                self.last_report.ueba_baseline_xml_path is not None
+                and self.last_report.ueba_baseline_xml_path.is_file()
+            ):
+                cmd.extend(
+                    [
+                        "--learn-baseline",
+                        str(self.last_report.ueba_baseline_xml_path.resolve()),
+                    ]
+                )
+            if self.last_report.ueba_profile_json_path is not None:
+                cmd.extend(
+                    [
+                        "--profile-path",
+                        str(self.last_report.ueba_profile_json_path.resolve()),
+                    ]
+                )
         if self.last_xml_path is not None and self.last_xml_path.is_file():
             xml_str = str(self.last_xml_path.resolve())
             cmd.extend(["--windows-xml", xml_str, "--watch-windows-xml", xml_str])

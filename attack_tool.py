@@ -111,16 +111,35 @@ def execute_simulation_pipeline(
         jsonl_path=jsonl_path,
         xml_path=xml_path,
         globalban_root=globalban_root,
+        evaluate_ueba=True,
+        evaluate_lolbin=True,
+        output_dir=output_dir,
     )
 
     print(format_report_text(report))
 
     if push_cli:
-        cli_alerts = push_xml_to_globalban_cli(xml_path, globalban_root=globalban_root)
+        cli_alerts = push_xml_to_globalban_cli(
+            xml_path,
+            globalban_root=globalban_root,
+            learn_baseline_xml=report.ueba_baseline_xml_path,
+            profile_path=report.ueba_profile_json_path,
+        )
         print(
             f"\n[+] Đã bắn trực tiếp file XML ({xml_path.name}) vào GlobalBan CLI "
-            f"(--windows-xml): thu được {len(cli_alerts):,} cảnh báo/tín hiệu JSON."
+            f"(--windows-xml --learn-baseline --profile-path): thu được {len(cli_alerts):,} cảnh báo/tín hiệu JSON."
         )
+        if report.ueba_test_xml_path and report.ueba_test_xml_path.is_file():
+            ueba_cli_alerts = push_xml_to_globalban_cli(
+                report.ueba_test_xml_path,
+                globalban_root=globalban_root,
+                learn_baseline_xml=report.ueba_baseline_xml_path,
+                profile_path=report.ueba_profile_json_path,
+            )
+            print(
+                f"[+] Đã bắn tiếp bộ UEBA Atomic Red Team ({report.ueba_test_xml_path.name}) vào GlobalBan CLI: "
+                f"thu được {len(ueba_cli_alerts):,} cảnh báo lệch chuẩn UEBA/Behavior JSON."
+            )
 
     report_json_path.write_text(
         json.dumps(report.to_dict(), indent=2, ensure_ascii=False),
