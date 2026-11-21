@@ -40,12 +40,15 @@ class BehaviorBaseline:
                 commands = data.get("commands", {})
                 if isinstance(commands, dict):
                     self._commands.update(commands)
+                # Restore frozen state — prevents evaluation pipeline from polluting baseline
+                self._frozen = bool(data.get("frozen", False))
             except (OSError, ValueError, TypeError, json.JSONDecodeError):
                 self._total = 0
                 self._counts.clear()
                 self._hours.clear()
                 self._executables.clear()
                 self._commands.clear()
+                self._frozen = False
 
     @property
     def frozen(self) -> bool:
@@ -53,7 +56,13 @@ class BehaviorBaseline:
 
     def fit(self, events: Iterable[WindowsEvent]) -> None:
         """Learn profiles from trusted baseline events and freeze the model."""
+        # Reset toàn bộ trạng thái trước khi huấn luyện lại từ đầu
         self._frozen = False
+        self._total = 0
+        self._counts.clear()
+        self._hours.clear()
+        self._executables.clear()
+        self._commands.clear()
         for event in events:
             self._record(event)
         self._frozen = True
@@ -127,6 +136,7 @@ class BehaviorBaseline:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         data: dict[str, Any] = {
             "total": self._total,
+            "frozen": self._frozen,
             "counts": self._counts,
             "hours": self._hours,
             "executables": self._executables,

@@ -226,13 +226,13 @@ def run(
     if config.notifications.whatsapp_enabled:
         try:
             notifier = WhatsAppNotifier()
-        except ValueError as exc:
+        except Exception as exc:
             logger.warning("WhatsApp notifier enabled but unavailable: %s", exc)
     ai_client = None
     if config.ai.enabled:
         try:
             ai_client = AIClient(base_url=config.ai.base_url, model=config.ai.model)
-        except ValueError as exc:
+        except Exception as exc:
             logger.warning("AI advisory enabled but unavailable: %s", exc)
     if config.ingestion.source == "windows_event_log":
         logger.info("Polling Windows Event Log channels: %s", config.ingestion.log_names)

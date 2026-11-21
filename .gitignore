@@ -12,8 +12,10 @@ htmlcov/
 globalban-audit.jsonl
 globalban-baseline.json
 globalban-behavior-state.json
+globalban-live-alerts.jsonl
+*.evtx
+data/
 
-
-# Dataset l?n hon gi?i h?n file c?a GitHub
+# Dataset lớn hơn giới hạn file của GitHub
 datasets/WinLOLBIN-GT-dataset/winlolbin_gt_processed_features_10m_plus_2.csv
 datasets/WinLOLBIN-GT-dataset/winlolbin_gt_unprocessed_merged_10m.csv

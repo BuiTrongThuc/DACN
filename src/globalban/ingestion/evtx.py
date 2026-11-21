@@ -10,7 +10,8 @@ from pathlib import Path
 def read_evtx_events(
     path: Path,
     *,
-    timeout_seconds: float = 120.0,
+    max_events: int | None = None,
+    timeout_seconds: float = 180.0,
 ) -> list[str]:
     """Return XML event records from an EVTX file using Windows' native reader."""
     if not path.is_file():
@@ -18,11 +19,14 @@ def read_evtx_events(
     if timeout_seconds <= 0:
         raise ValueError("timeout_seconds must be greater than zero")
 
+    resolved_path = str(path.resolve()).replace("'", "''")
+    max_opt = f" -MaxEvents {max_events}" if max_events else ""
     script = (
-        "$events = Get-WinEvent -Path $args[0] -ErrorAction Stop; "
-        "$events | ForEach-Object { "
+        f"$p = '{resolved_path}'; "
+        f"Get-WinEvent -Path $p{max_opt} -ErrorAction Stop | "
+        "ForEach-Object { "
         "[Convert]::ToBase64String("
-        "[Text.Encoding]::UTF8.GetBytes($_.ToXml())) }"
+        "[Text.Encoding]::UTF8.GetBytes($_.ToXml())) }; exit 0 # "
     )
     try:
         result = subprocess.run(

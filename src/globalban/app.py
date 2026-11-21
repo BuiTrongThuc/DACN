@@ -39,6 +39,11 @@ class GlobalBanApp:
         self._telemetry_tree: ttk.Treeview | None = None
         self._audit_window: tk.Toplevel | None = None
         self._audit_tree: ttk.Treeview | None = None
+        self._live_window: tk.Frame | None = None
+        self._live_tree: ttk.Treeview | None = None
+        self._live_alert_count_var: tk.StringVar | None = None
+        self._live_last_seen: int = 0
+        self._live_refresh_job: str | None = None
         self._pages: dict[str, tk.Frame] = {}
         self._monitor_page: tk.Frame | None = None
         self._proxy_bind = tk.StringVar(value="127.0.0.1")
@@ -372,6 +377,24 @@ class GlobalBanApp:
         tk.Label(sidebar, textvariable=self._text("console"), fg=palette["muted"], bg=palette["sidebar"], font=("Segoe UI", 8, "bold")).pack(anchor="w", pady=(0, 18))
         tk.Label(sidebar, text="WORKSPACE", fg="#536579", bg=palette["sidebar"], font=("Consolas", 7, "bold")).pack(anchor="w", pady=(0, 7))
         self._nav_item(sidebar, "01", "monitor", active=True, command=self._show_monitor_page)
+        # Tab LIVE RED TEAM — nổi bật màu đỏ
+        live_btn_frame = tk.Frame(sidebar, bg=palette["sidebar"], pady=3)
+        live_btn_frame.pack(fill="x")
+        self._live_tab_btn = tk.Button(
+            live_btn_frame,
+            text="🔴  05  LIVE RED TEAM",
+            command=self._open_live_panel,
+            fg=palette["red"],
+            bg="#1a0d0d",
+            activebackground="#2a1010",
+            activeforeground=palette["red"],
+            relief="flat",
+            padx=10,
+            pady=10,
+            font=("Segoe UI", 9, "bold"),
+            anchor="w",
+        )
+        self._live_tab_btn.pack(fill="x")
         tk.Label(sidebar, text="DỮ LIỆU & KIỂM SOÁT", fg="#536579", bg=palette["sidebar"], font=("Consolas", 7, "bold")).pack(anchor="w", pady=(18, 7))
         self._nav_item(sidebar, "02", "telemetry", command=self._open_telemetry_panel)
         self._nav_item(sidebar, "03", "audit", command=self._open_audit_panel)
@@ -1073,7 +1096,220 @@ class GlobalBanApp:
         self._proxy_window = None
         self._proxy_log = None
 
-    def _clear_filter_hint(self, entry: tk.Entry) -> None:
+    # ── LIVE RED TEAM PANEL ────────────────────────────────────────────────
+
+    def _open_live_panel(self) -> None:
+        """Mở/hiển thị bảng cảnh báo realtime từ live_monitor.py."""
+        palette = self._palette
+        if self._live_window is not None and self._live_window.winfo_exists():
+            self._show_page("live")
+            self._refresh_live_view()
+            return
+        window = self._new_page("live")
+        self._live_window = window
+        # Header
+        header = tk.Frame(window, bg=palette["bg"])
+        header.pack(fill="x", pady=(0, 16))
+        left = tk.Frame(header, bg=palette["bg"])
+        left.pack(side="left")
+        tk.Label(left, text="🔴  LIVE RED TEAM DETECTOR", fg=palette["red"],
+                 bg=palette["bg"], font=("Bahnschrift", 22, "bold")).pack(anchor="w")
+        tk.Label(left, text="Cảnh báo realtime từ live_monitor.py — tự động làm mới mỗi 3 giây",
+                 fg=palette["muted"], bg=palette["bg"], font=("Segoe UI", 9)).pack(anchor="w", pady=(3, 0))
+        btn_frame = tk.Frame(header, bg=palette["bg"])
+        btn_frame.pack(side="right", anchor="n")
+        self._live_monitor_status = tk.StringVar(value="Chưa chạy")
+        tk.Label(btn_frame, textvariable=self._live_monitor_status,
+                 fg=palette["amber"], bg=palette["bg"], font=("Consolas", 8, "bold")).pack(side="left", padx=(0, 10))
+        tk.Button(btn_frame, text="▶  Khởi động Live Monitor",
+                  command=self._start_live_monitor,
+                  bg=palette["red"], fg="white", relief="flat",
+                  padx=14, pady=6, font=("Segoe UI", 9, "bold")).pack(side="left")
+        tk.Button(btn_frame, text="↺  Làm mới",
+                  command=self._refresh_live_view,
+                  bg=palette["panel_alt"], fg=palette["text"], relief="flat",
+                  padx=10, pady=6).pack(side="left", padx=(8, 0))
+        # Cards thống kê
+        cards_frame = tk.Frame(window, bg=palette["bg"])
+        cards_frame.pack(fill="x", pady=(0, 14))
+        self._live_alert_count_var = tk.StringVar(value="0")
+        self._live_critical_var = tk.StringVar(value="0")
+        self._live_high_var = tk.StringVar(value="0")
+        self._live_last_event_var = tk.StringVar(value="—")
+        for col, (label, var, color) in enumerate([
+            ("TỔNG CẢNH BÁO", self._live_alert_count_var, palette["red"]),
+            ("CRITICAL (>=90)", self._live_critical_var, "#ff3355"),
+            ("HIGH (60-89)", self._live_high_var, palette["amber"]),
+            ("SU KIEN GAN NHAT", self._live_last_event_var, palette["cyan"]),
+        ]):
+            card = tk.Frame(cards_frame, bg=palette["panel"], padx=14, pady=12,
+                            highlightthickness=1, highlightbackground=palette["line"])
+            card.grid(row=0, column=col, sticky="nsew", padx=(0, 10 if col < 3 else 0))
+            cards_frame.grid_columnconfigure(col, weight=1)
+            tk.Label(card, text=label, fg=palette["muted"], bg=palette["panel"],
+                     font=("Segoe UI", 8, "bold")).pack(anchor="w")
+            tk.Label(card, textvariable=var, fg=color, bg=palette["panel"],
+                     font=("Bahnschrift", 20, "bold")).pack(anchor="w", pady=(5, 0))
+        # Bảng cảnh báo chính
+        body = tk.Frame(window, bg=palette["panel"], padx=16, pady=14,
+                        highlightthickness=1, highlightbackground=palette["line"])
+        body.pack(fill="both", expand=True)
+        top_row = tk.Frame(body, bg=palette["panel"])
+        top_row.pack(fill="x", pady=(0, 8))
+        self._live_pulse_dot = tk.Label(top_row, text="●", fg=palette["red"],
+                                         bg=palette["panel"], font=("Segoe UI", 13))
+        self._live_pulse_dot.pack(side="left")
+        tk.Label(top_row, text="BANG CANH BAO REALTIME",
+                 fg=palette["text"], bg=palette["panel"],
+                 font=("Segoe UI", 10, "bold")).pack(side="left", padx=(7, 0))
+        self._live_file_label = tk.StringVar(value="globalban-live-alerts.jsonl")
+        tk.Label(top_row, textvariable=self._live_file_label,
+                 fg=palette["muted"], bg=palette["panel"],
+                 font=("Consolas", 8)).pack(side="right")
+        cols_def = ("time", "severity", "score", "host", "user", "events", "reasons")
+        self._live_tree = ttk.Treeview(body, columns=cols_def, show="headings",
+                                        style="GlobalBan.Treeview")
+        heads = {"time": "Thoi gian", "severity": "Muc do", "score": "Score",
+                 "host": "Host", "user": "User", "events": "Event IDs", "reasons": "Ly do"}
+        widths = {"time": 85, "severity": 80, "score": 60, "host": 160,
+                  "user": 110, "events": 100, "reasons": 450}
+        for c in cols_def:
+            self._live_tree.heading(c, text=heads[c])
+            self._live_tree.column(c, width=widths[c], anchor="w")
+        self._live_tree.tag_configure("critical", background="#2d0a0d", foreground="#ff6b78")
+        self._live_tree.tag_configure("high",     background="#1e1800", foreground="#f2c65c")
+        self._live_tree.tag_configure("event",    background="#0d1a2a", foreground="#49a6ff")
+        scrollbar = ttk.Scrollbar(body, orient="vertical", command=self._live_tree.yview)
+        self._live_tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+        self._live_tree.pack(fill="both", expand=True)
+        self._live_prev_critical = 0
+        self._refresh_live_view()
+        self._schedule_live_refresh()
+
+    def _schedule_live_refresh(self) -> None:
+        if self._live_window is None or not self._live_window.winfo_exists():
+            return
+        self._refresh_live_view()
+        try:
+            current = self._live_pulse_dot.cget("fg")
+            next_color = "#ff3355" if current == self._palette["red"] else self._palette["red"]
+            self._live_pulse_dot.configure(fg=next_color)
+        except Exception:
+            pass
+        self._root.after(3000, self._schedule_live_refresh)
+
+    def _refresh_live_view(self) -> None:
+        import json as _json
+        from pathlib import Path as _Path
+        if self._live_tree is None or not self._live_tree.winfo_exists():
+            return
+        alert_file = _Path("globalban-live-alerts.jsonl")
+        if hasattr(self, "_live_file_label") and self._live_file_label is not None:
+            self._live_file_label.set(str(alert_file.resolve()))
+        rows_alert: list[tuple] = []
+        rows_event: list[tuple] = []
+        total_alerts = 0
+        critical_count = 0
+        high_count = 0
+        last_event_id = "—"
+        if alert_file.exists():
+            try:
+                lines = alert_file.read_text(encoding="utf-8").splitlines()
+                for line in lines:
+                    try:
+                        rec = _json.loads(line)
+                    except _json.JSONDecodeError:
+                        continue
+                    evt = rec.get("event", "")
+                    ts = rec.get("timestamp", "")[:19].replace("T", " ")
+                    if evt == "LIVE_ALERT":
+                        total_alerts += 1
+                        score = rec.get("score", 0)
+                        severity = rec.get("severity", "HIGH")
+                        if severity == "CRITICAL":
+                            critical_count += 1
+                        else:
+                            high_count += 1
+                        rows_alert.append((
+                            ts, severity, str(score),
+                            rec.get("host", "-"), rec.get("username", "-"),
+                            str(rec.get("event_ids", [])),
+                            " | ".join(rec.get("reasons", [])),
+                        ))
+                    elif evt == "WINDOWS_EVENT":
+                        last_event_id = f"EID {rec.get('event_id','?')} {ts[11:]}"
+                        rows_event.append((
+                            ts, "EVENT", "-",
+                            rec.get("host", "-"), rec.get("username", "-"),
+                            str(rec.get("event_id", "")),
+                            rec.get("detail", "")[:120],
+                        ))
+            except OSError:
+                pass
+        if self._live_alert_count_var is not None:
+            self._live_alert_count_var.set(str(total_alerts))
+        if hasattr(self, "_live_critical_var") and self._live_critical_var is not None:
+            self._live_critical_var.set(str(critical_count))
+        if hasattr(self, "_live_high_var") and self._live_high_var is not None:
+            self._live_high_var.set(str(high_count))
+        if hasattr(self, "_live_last_event_var") and self._live_last_event_var is not None:
+            self._live_last_event_var.set(last_event_id)
+        for item in self._live_tree.get_children():
+            self._live_tree.delete(item)
+        for row in list(reversed(rows_alert[-50:])):
+            tag = "critical" if row[1] == "CRITICAL" else "high"
+            self._live_tree.insert("", "end", values=row, tags=(tag,))
+        for row in list(reversed(rows_event[-20:])):
+            self._live_tree.insert("", "end", values=row, tags=("event",))
+        new_critical = critical_count
+        prev = getattr(self, "_live_prev_critical", 0)
+        if new_critical > prev and new_critical > 0 and rows_alert:
+            self._show_critical_popup(rows_alert[-1])
+        self._live_prev_critical = new_critical
+
+    def _show_critical_popup(self, row: tuple) -> None:
+        try:
+            popup = tk.Toplevel(self._root)
+            popup.title("CRITICAL ALERT — RED TEAM DETECTED")
+            popup.configure(bg="#1a0505")
+            popup.geometry("520x220")
+            popup.resizable(False, False)
+            popup.attributes("-topmost", True)
+            info = f"Host: {row[3]}  |  User: {row[4]}\nScore: {row[2]}/100  |  Events: {row[5]}\n{row[6][:80]}"
+            tk.Label(popup, text="PHAT HIEN TAN CONG!",
+                     fg="#ff3355", bg="#1a0505",
+                     font=("Bahnschrift", 20, "bold")).pack(pady=(22, 8))
+            tk.Label(popup, text=info, fg="#ffcccc", bg="#1a0505",
+                     font=("Consolas", 10), justify="left").pack(padx=22)
+            tk.Button(popup, text="OK — Da biet", command=popup.destroy,
+                      bg="#ff3355", fg="white", relief="flat",
+                      padx=20, pady=8, font=("Segoe UI", 10, "bold")).pack(pady=(18, 0))
+            self._root.after(15000, lambda: popup.destroy() if popup.winfo_exists() else None)
+        except Exception:
+            pass
+
+    def _start_live_monitor(self) -> None:
+        import subprocess as _sp
+        import sys as _sys
+        from pathlib import Path as _Path
+        monitor_script = _Path(__file__).resolve().parents[2] / "live_monitor.py"
+        if not monitor_script.exists():
+            messagebox.showerror("Live Monitor",
+                                 f"Khong tim thay live_monitor.py tai:\n{monitor_script}")
+            return
+        try:
+            _sp.Popen(
+                [_sys.executable, str(monitor_script)],
+                cwd=str(monitor_script.parent),
+                creationflags=getattr(_sp, "CREATE_NEW_CONSOLE", 0),
+            )
+            if hasattr(self, "_live_monitor_status") and self._live_monitor_status is not None:
+                self._live_monitor_status.set("DANG CHAY")
+        except OSError as exc:
+            messagebox.showerror("Live Monitor", f"Khong the khoi dong: {exc}")
+
+
         if self._log_filter.get() == self._translate("filter_logs"):
             self._log_filter.set("")
             entry.configure(fg=self._palette["text"])
@@ -1333,6 +1569,11 @@ class GlobalBanApp:
         self._stop_proxy()
         self._close_telemetry_panel()
         self._close_audit_panel()
+        if self._live_refresh_job is not None:
+            try:
+                self._root.after_cancel(self._live_refresh_job)
+            except Exception:
+                pass
         self._root.destroy()
 
 

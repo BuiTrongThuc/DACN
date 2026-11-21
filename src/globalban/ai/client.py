@@ -32,7 +32,12 @@ class AIClient:
         model: str = "gpt-4o-mini",
         timeout_seconds: float = 15.0,
     ) -> None:
-        self._api_key = api_key or os.getenv("GLOBALBAN_AI_API_KEY")
+        self._api_key = (
+            api_key
+            or os.getenv("GLOBALBAN_AI_API_KEY")
+            or os.getenv("GEMINI_API_KEY")
+            or os.getenv("OPENAI_API_KEY")
+        )
         self._base_url = (
             base_url or os.getenv("GLOBALBAN_AI_BASE_URL") or "https://api.openai.com/v1"
         ).rstrip("/")
@@ -40,7 +45,9 @@ class AIClient:
         self._timeout_seconds = timeout_seconds
         self._dataset_knowledge = CombinedDatasetKnowledge.from_environment()
         if not self._api_key:
-            raise ValueError("GLOBALBAN_AI_API_KEY is required when AI is enabled")
+            raise ValueError(
+                "GLOBALBAN_AI_API_KEY (hoặc GEMINI_API_KEY/OPENAI_API_KEY) is required when AI is enabled"
+            )
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be greater than zero")
 

@@ -84,6 +84,8 @@ def parse_windows_security_event(
             host = element.attrib.get("Computer", host)
         elif local_name == "System":
             host = element.attrib.get("Computer", host)
+        elif local_name == "Computer" and element.text:
+            host = element.text.strip()
         elif local_name == "TimeCreated":
             value = element.attrib.get("SystemTime")
             if value:
