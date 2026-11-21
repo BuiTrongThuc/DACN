@@ -1,0 +1,17 @@
+# Bỏ qua file nhị phân Windows Event Log (thường rất nặng)
+artifacts/**/*.evtx
+
+# Bỏ qua file nén
+*.zip
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Output tạm
+*.tmp
+*.bak

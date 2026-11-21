@@ -1,0 +1,17 @@
+﻿{
+    "case_id":  "atomic-T1059-001-test-01",
+    "kind":  "atomic",
+    "host":  "ATCK",
+    "username":  "ATCK\\\\thucb",
+    "start_utc":  "2026-11-09T19:39:15.7604161Z",
+    "end_utc":  "2026-11-09T19:39:16.1947188Z",
+    "exported_channels":  [
+
+                          ],
+    "failed_channels":  [
+                            "Security",
+                            "Microsoft-Windows-Sysmon/Operational",
+                            "Microsoft-Windows-PowerShell/Operational",
+                            "Microsoft-Windows-Windows Defender/Operational"
+                        ]
+}
