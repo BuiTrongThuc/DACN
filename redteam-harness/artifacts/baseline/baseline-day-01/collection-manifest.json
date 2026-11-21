@@ -1,0 +1,16 @@
+﻿{
+    "case_id":  "baseline-day-01",
+    "kind":  "baseline",
+    "host":  "ATCK",
+    "username":  "ATCK\\\\thucb",
+    "start_utc":  "2026-11-09T19:57:41.3218888Z",
+    "end_utc":  "2026-11-09T19:57:41.5148736Z",
+    "exported_channels":  [
+                              "Microsoft-Windows-PowerShell/Operational",
+                              "Microsoft-Windows-Windows Defender/Operational"
+                          ],
+    "failed_channels":  [
+                            "Security",
+                            "Microsoft-Windows-Sysmon/Operational"
+                        ]
+}

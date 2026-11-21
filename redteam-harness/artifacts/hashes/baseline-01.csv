@@ -1,0 +1,3 @@
+Algorithm,Hash,Path
+SHA256,D85171BF631DFB45DE56FC1A72D249A2EDDA4A0F9917799756A54D1623A6E394,C:\redteam-harness\artifacts\baseline\baseline-01\PowerShell.evtx
+SHA256,68EAFCDABDEFE5B12B6D7119C054EABFF61FBB16B39EE620DDD9A1D9B50F85EA,C:\redteam-harness\artifacts\baseline\baseline-01\Defender.evtx

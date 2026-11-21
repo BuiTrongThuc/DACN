@@ -1,0 +1,143 @@
+[
+  {
+    "step_id": 1,
+    "case_id": "baseline-day-01",
+    "tactic": "baseline",
+    "technique_id": null,
+    "technique_name": "Day 1 Routine (Office + Dev normal activities)",
+    "executed_command": "whoami; explorer.exe -> chrome.exe; WINWORD.EXE; Code.exe git status",
+    "start_timestamp_utc": "2026-11-17T08:00:00Z",
+    "end_timestamp_utc": "2026-11-17T17:30:00Z",
+    "start_utc": "2026-11-17T08:00:00Z",
+    "end_utc": "2026-11-17T17:30:00Z",
+    "expected_windows_event_ids": [
+      4624,
+      4688
+    ],
+    "is_malicious": false,
+    "expected_detected": false,
+    "host": "atck",
+    "username": "user_vanphong, user_dev",
+    "log_path": "baseline/baseline-day-01",
+    "artifact_path": "artifacts/baseline/baseline-day-01",
+    "kind": "baseline",
+    "exported_channels": [
+      "Security.evtx",
+      "PowerShell.evtx",
+      "Sysmon.evtx",
+      "Defender.evtx"
+    ]
+  },
+  {
+    "step_id": 2,
+    "case_id": "baseline-day-02",
+    "tactic": "baseline",
+    "technique_id": null,
+    "technique_name": "Day 2 Routine (Office + Dev normal activities)",
+    "executed_command": "whoami; explorer.exe -> chrome.exe; WINWORD.EXE; Code.exe git status",
+    "start_timestamp_utc": "2026-11-18T08:00:00Z",
+    "end_timestamp_utc": "2026-11-18T17:30:00Z",
+    "start_utc": "2026-11-18T08:00:00Z",
+    "end_utc": "2026-11-18T17:30:00Z",
+    "expected_windows_event_ids": [
+      4624,
+      4688
+    ],
+    "is_malicious": false,
+    "expected_detected": false,
+    "host": "atck",
+    "username": "user_vanphong, user_dev",
+    "log_path": "baseline/baseline-day-02",
+    "artifact_path": "artifacts/baseline/baseline-day-02",
+    "kind": "baseline",
+    "exported_channels": [
+      "Security.evtx",
+      "PowerShell.evtx",
+      "Sysmon.evtx",
+      "Defender.evtx"
+    ]
+  },
+  {
+    "step_id": 3,
+    "case_id": "baseline-day-03",
+    "tactic": "baseline",
+    "technique_id": null,
+    "technique_name": "Day 3 Routine (Office + Dev normal activities)",
+    "executed_command": "whoami; explorer.exe -> chrome.exe; WINWORD.EXE; Code.exe git status",
+    "start_timestamp_utc": "2026-11-19T08:00:00Z",
+    "end_timestamp_utc": "2026-11-19T17:30:00Z",
+    "start_utc": "2026-11-19T08:00:00Z",
+    "end_utc": "2026-11-19T17:30:00Z",
+    "expected_windows_event_ids": [
+      4624,
+      4688
+    ],
+    "is_malicious": false,
+    "expected_detected": false,
+    "host": "atck",
+    "username": "user_vanphong, user_dev",
+    "log_path": "baseline/baseline-day-03",
+    "artifact_path": "artifacts/baseline/baseline-day-03",
+    "kind": "baseline",
+    "exported_channels": [
+      "Security.evtx",
+      "PowerShell.evtx",
+      "Sysmon.evtx",
+      "Defender.evtx"
+    ]
+  },
+  {
+    "step_id": 4,
+    "case_id": "baseline-day-04",
+    "tactic": "baseline",
+    "technique_id": null,
+    "technique_name": "Day 4 Routine (Office + Dev normal activities)",
+    "executed_command": "whoami; explorer.exe -> chrome.exe; WINWORD.EXE; Code.exe git status",
+    "start_timestamp_utc": "2026-11-20T08:00:00Z",
+    "end_timestamp_utc": "2026-11-20T17:30:00Z",
+    "start_utc": "2026-11-20T08:00:00Z",
+    "end_utc": "2026-11-20T17:30:00Z",
+    "expected_windows_event_ids": [
+      4624,
+      4688
+    ],
+    "is_malicious": false,
+    "expected_detected": false,
+    "host": "atck",
+    "username": "user_vanphong, user_dev",
+    "log_path": "baseline/baseline-day-04",
+    "artifact_path": "artifacts/baseline/baseline-day-04",
+    "kind": "baseline",
+    "exported_channels": [
+      "PowerShell.evtx",
+      "Defender.evtx"
+    ]
+  },
+  {
+    "step_id": 5,
+    "case_id": "baseline-day-05",
+    "tactic": "baseline",
+    "technique_id": null,
+    "technique_name": "Day 5 Routine (Office + Dev normal activities)",
+    "executed_command": "whoami; explorer.exe -> chrome.exe; WINWORD.EXE; Code.exe git status",
+    "start_timestamp_utc": "2026-11-21T08:00:00Z",
+    "end_timestamp_utc": "2026-11-21T17:30:00Z",
+    "start_utc": "2026-11-21T08:00:00Z",
+    "end_utc": "2026-11-21T17:30:00Z",
+    "expected_windows_event_ids": [
+      4624,
+      4688
+    ],
+    "is_malicious": false,
+    "expected_detected": false,
+    "host": "atck",
+    "username": "user_vanphong, user_dev",
+    "log_path": "baseline/baseline-day-05",
+    "artifact_path": "artifacts/baseline/baseline-day-05",
+    "kind": "baseline",
+    "exported_channels": [
+      "PowerShell.evtx",
+      "Defender.evtx"
+    ]
+  }
+]
