@@ -1,0 +1,249 @@
+{
+  "baseline_file": "windows_baseline_7days.xml",
+  "records": [
+    {
+      "atomic_test_id": null,
+      "expected_deviation_tags": [],
+      "host": "PC-01",
+      "is_anomaly": false,
+      "mitre_technique_id": null,
+      "record_id": "test-001",
+      "scenario": "normal_office_logon_pc01",
+      "timestamp": "2025-03-08T08:05:00Z",
+      "username": "nguyen.an",
+      "windows_event_id": 4624
+    },
+    {
+      "atomic_test_id": null,
+      "expected_deviation_tags": [],
+      "host": "PC-01",
+      "is_anomaly": false,
+      "mitre_technique_id": null,
+      "record_id": "test-002",
+      "scenario": "normal_word_usage_pc01",
+      "timestamp": "2025-03-08T08:10:00Z",
+      "username": "nguyen.an",
+      "windows_event_id": 4688
+    },
+    {
+      "atomic_test_id": null,
+      "expected_deviation_tags": [],
+      "host": "PC-01",
+      "is_anomaly": false,
+      "mitre_technique_id": null,
+      "record_id": "test-003",
+      "scenario": "normal_excel_usage_pc01",
+      "timestamp": "2025-03-08T08:15:00Z",
+      "username": "nguyen.an",
+      "windows_event_id": 4688
+    },
+    {
+      "atomic_test_id": null,
+      "expected_deviation_tags": [],
+      "host": "PC-01",
+      "is_anomaly": false,
+      "mitre_technique_id": null,
+      "record_id": "test-004",
+      "scenario": "normal_https_browsing_pc01",
+      "timestamp": "2025-03-08T08:20:00Z",
+      "username": null,
+      "windows_event_id": 5156
+    },
+    {
+      "atomic_test_id": null,
+      "expected_deviation_tags": [],
+      "host": "PC-02",
+      "is_anomaly": false,
+      "mitre_technique_id": null,
+      "record_id": "test-005",
+      "scenario": "normal_office_logon_pc02",
+      "timestamp": "2025-03-08T08:12:00Z",
+      "username": "tran.binh",
+      "windows_event_id": 4624
+    },
+    {
+      "atomic_test_id": null,
+      "expected_deviation_tags": [],
+      "host": "PC-02",
+      "is_anomaly": false,
+      "mitre_technique_id": null,
+      "record_id": "test-006",
+      "scenario": "normal_edge_usage_pc02",
+      "timestamp": "2025-03-08T08:18:00Z",
+      "username": "tran.binh",
+      "windows_event_id": 1
+    },
+    {
+      "atomic_test_id": null,
+      "expected_deviation_tags": [],
+      "host": "SRV-FILE01",
+      "is_anomaly": false,
+      "mitre_technique_id": null,
+      "record_id": "test-007",
+      "scenario": "normal_admin_logon_srv",
+      "timestamp": "2025-03-08T09:02:00Z",
+      "username": "admin.it",
+      "windows_event_id": 4624
+    },
+    {
+      "atomic_test_id": null,
+      "expected_deviation_tags": [],
+      "host": "SRV-FILE01",
+      "is_anomaly": false,
+      "mitre_technique_id": null,
+      "record_id": "test-008",
+      "scenario": "normal_admin_powershell_srv",
+      "timestamp": "2025-03-08T09:10:00Z",
+      "username": "admin.it",
+      "windows_event_id": 4104
+    },
+    {
+      "atomic_test_id": "T1078-Atomic-OffHoursLogon",
+      "expected_deviation_tags": [
+        "unusual_login_hour",
+        "unusual_machine_activity_hour"
+      ],
+      "host": "PC-01",
+      "is_anomaly": true,
+      "mitre_technique_id": "T1078",
+      "record_id": "test-009",
+      "scenario": "atomic_off_hours_logon_2am_pc01",
+      "timestamp": "2025-03-09T02:01:00Z",
+      "username": "nguyen.an",
+      "windows_event_id": 4624
+    },
+    {
+      "atomic_test_id": "T1059.001-Atomic-PowerShellSpawn",
+      "expected_deviation_tags": [
+        "unusual_user_activity_hour",
+        "unusual_process_for_user",
+        "unusual_process_for_machine"
+      ],
+      "host": "PC-01",
+      "is_anomaly": true,
+      "mitre_technique_id": "T1059.001",
+      "record_id": "test-010",
+      "scenario": "atomic_unusual_powershell_spawn_pc01",
+      "timestamp": "2025-03-09T02:02:00Z",
+      "username": "nguyen.an",
+      "windows_event_id": 4688
+    },
+    {
+      "atomic_test_id": "T1033-1-SystemOwnerDiscovery",
+      "expected_deviation_tags": [
+        "unusual_powershell_command"
+      ],
+      "host": "PC-01",
+      "is_anomaly": true,
+      "mitre_technique_id": "T1033",
+      "record_id": "test-011",
+      "scenario": "atomic_whoami_discovery_pc01",
+      "timestamp": "2025-03-09T02:03:00Z",
+      "username": "nguyen.an",
+      "windows_event_id": 4104
+    },
+    {
+      "atomic_test_id": "T1105-Atomic-PowerShellDownload",
+      "expected_deviation_tags": [
+        "unusual_powershell_command",
+        "download_or_transfer_marker"
+      ],
+      "host": "PC-01",
+      "is_anomaly": true,
+      "mitre_technique_id": "T1105",
+      "record_id": "test-012",
+      "scenario": "atomic_powershell_file_download_pc01",
+      "timestamp": "2025-03-09T02:04:00Z",
+      "username": "nguyen.an",
+      "windows_event_id": 4104
+    },
+    {
+      "atomic_test_id": "T1071.001-Atomic-WebProtocolsC2",
+      "expected_deviation_tags": [
+        "unusual_network_connection"
+      ],
+      "host": "PC-01",
+      "is_anomaly": true,
+      "mitre_technique_id": "T1071.001",
+      "record_id": "test-013",
+      "scenario": "atomic_unusual_outbound_c2_pc01",
+      "timestamp": "2025-03-09T02:05:00Z",
+      "username": null,
+      "windows_event_id": 5156
+    },
+    {
+      "atomic_test_id": "T1078-Atomic-UnusualHostAccess",
+      "expected_deviation_tags": [
+        "unusual_machine_for_user",
+        "unusual_user_for_machine"
+      ],
+      "host": "SRV-FILE01",
+      "is_anomaly": true,
+      "mitre_technique_id": "T1078",
+      "record_id": "test-014",
+      "scenario": "atomic_lateral_logon_unusual_host",
+      "timestamp": "2025-03-09T10:15:00Z",
+      "username": "nguyen.an",
+      "windows_event_id": 4624
+    },
+    {
+      "atomic_test_id": "T1059.001-Atomic-EncodedCommand",
+      "expected_deviation_tags": [
+        "unusual_process_for_user",
+        "unusual_process_for_machine",
+        "unusual_powershell_command",
+        "encoded_or_obfuscated_script_marker"
+      ],
+      "host": "PC-02",
+      "is_anomaly": true,
+      "mitre_technique_id": "T1059.001",
+      "record_id": "test-015",
+      "scenario": "atomic_encoded_powershell_pc02",
+      "timestamp": "2025-03-09T11:00:00Z",
+      "username": "tran.binh",
+      "windows_event_id": 1
+    },
+    {
+      "atomic_test_id": "T1053.005-Atomic-ScheduledTask",
+      "expected_deviation_tags": [
+        "unusual_process_for_user",
+        "unusual_process_for_machine"
+      ],
+      "host": "PC-02",
+      "is_anomaly": true,
+      "mitre_technique_id": "T1053.005",
+      "record_id": "test-016",
+      "scenario": "atomic_schtasks_persistence_pc02",
+      "timestamp": "2025-03-09T11:02:00Z",
+      "username": "tran.binh",
+      "windows_event_id": 1
+    },
+    {
+      "atomic_test_id": null,
+      "expected_deviation_tags": [],
+      "host": "PC-01",
+      "is_anomaly": false,
+      "mitre_technique_id": null,
+      "record_id": "test-017",
+      "scenario": "normal_afternoon_chrome_pc01",
+      "timestamp": "2025-03-09T14:10:00Z",
+      "username": "nguyen.an",
+      "windows_event_id": 4688
+    },
+    {
+      "atomic_test_id": null,
+      "expected_deviation_tags": [],
+      "host": "PC-02",
+      "is_anomaly": false,
+      "mitre_technique_id": null,
+      "record_id": "test-018",
+      "scenario": "normal_afternoon_network_pc02",
+      "timestamp": "2025-03-09T15:05:00Z",
+      "username": "tran.binh",
+      "windows_event_id": 3
+    }
+  ],
+  "schema_version": 1,
+  "test_file": "windows_test_atomic.xml",
+  "title": "GlobalBan Windows UEBA Baseline vs Atomic Red Team Ground Truth"
+}

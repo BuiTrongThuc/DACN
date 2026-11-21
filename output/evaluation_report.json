@@ -1,0 +1,373 @@
+{
+  "engine_mode": "Built-in Standalone GlobalBan & UEBA Engine",
+  "jsonl_path": "/home/bard/attack-globalban/output/simulated_windows_eval.jsonl",
+  "xml_path": "/home/bard/attack-globalban/output/simulated_windows_events.xml",
+  "total_events": 1127,
+  "malicious_events": 497,
+  "expected_signal_events": 220,
+  "precursor_attack_events": 277,
+  "benign_events": 630,
+  "confusion_matrix": {
+    "TP": 220,
+    "FP": 0,
+    "FN": 0,
+    "TN": 907
+  },
+  "metrics": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "false_positive_rate": 0.0,
+    "rule_match_accuracy": 1.0
+  },
+  "mitre_technique_counts": {
+    "T1027.010": 8,
+    "T1053.005": 51,
+    "T1059.001": 25,
+    "T1070.001": 25,
+    "T1071.001": 125,
+    "T1098": 50,
+    "T1110.001": 72,
+    "T1110.003": 67,
+    "T1134": 25,
+    "T1543.003": 37,
+    "T1562.002": 12
+  },
+  "mitre_signal_recall_by_technique": {
+    "T1027.010": 1.0,
+    "T1053.005": 1.0,
+    "T1059.001": 1.0,
+    "T1070.001": 1.0,
+    "T1071.001": 1.0,
+    "T1098": 1.0,
+    "T1110.001": 1.0,
+    "T1110.003": 1.0,
+    "T1134": 1.0,
+    "T1543.003": 1.0,
+    "T1562.002": 1.0
+  },
+  "triggered_rule_counts": {
+    "AUTH-FAILURE-BURST": 37,
+    "C2-BEACONING": 25,
+    "OBFUSCATED-COMMAND-LINE": 25,
+    "PRIVILEGE-CHANGE": 50,
+    "WINDOWS-4624-4688": 25,
+    "WINDOWS-4624-4688-4698": 17,
+    "WINDOWS-4624-4688-7045": 8,
+    "WINDOWS-4688-1102": 6,
+    "WINDOWS-4688-4104": 8,
+    "WINDOWS-4688-4719": 6,
+    "WINDOWS-4720-4728": 6,
+    "WINDOWS-4720-4728-4704": 6,
+    "WINDOWS-4720-4732": 13,
+    "WINDOWS-4720-4732-4704": 13,
+    "WINDOWS-4720-4756": 6,
+    "WINDOWS-4720-4756-4704": 6,
+    "WINDOWS-7045-1102": 7,
+    "WINDOWS-7045-4719": 6
+  },
+  "total_alerts_and_signals": 270,
+  "auth_burst_levels": {
+    "level_1": 12,
+    "level_2": 25
+  },
+  "persistence_correlator_count": 25,
+  "ueba_evaluation": {
+    "baseline_xml_path": "/home/bard/attack-globalban/output/windows_baseline_7days.xml",
+    "test_xml_path": "/home/bard/attack-globalban/output/windows_test_atomic.xml",
+    "ground_truth_json_path": "/home/bard/attack-globalban/output/windows_ground_truth.json",
+    "profile_json_path": "/home/bard/attack-globalban/output/ueba_profiles.json",
+    "profile_summary": {
+      "schema_version": 1,
+      "baseline_event_count": 1078,
+      "users": {
+        "admin.it": {
+          "hours": [
+            9,
+            10,
+            11,
+            13,
+            14,
+            15,
+            16
+          ],
+          "machines": [
+            "SRV-FILE01"
+          ],
+          "processes": [
+            "powershell.exe"
+          ],
+          "ps_commands": [
+            "get-service | get-childitem",
+            "powershell.exe get-service"
+          ],
+          "destinations": [],
+          "event_count": 112
+        },
+        "nguyen.an": {
+          "hours": [
+            8,
+            9,
+            10,
+            11,
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "machines": [
+            "PC-01"
+          ],
+          "processes": [
+            "chrome.exe",
+            "excel.exe",
+            "explorer.exe",
+            "winword.exe"
+          ],
+          "ps_commands": [],
+          "destinations": [],
+          "event_count": 273
+        },
+        "tran.binh": {
+          "hours": [
+            8,
+            9,
+            10,
+            11,
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "machines": [
+            "PC-02"
+          ],
+          "processes": [
+            "excel.exe",
+            "msedge.exe",
+            "outlook.exe",
+            "winword.exe"
+          ],
+          "ps_commands": [],
+          "destinations": [
+            "10.10.1.10:445",
+            "10.10.1.53:53",
+            "198.51.100.20:443"
+          ],
+          "event_count": 455
+        }
+      },
+      "machines": {
+        "PC-01": {
+          "hours": [
+            8,
+            9,
+            10,
+            11,
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "users": [
+            "nguyen.an"
+          ],
+          "processes": [
+            "chrome.exe",
+            "excel.exe",
+            "explorer.exe",
+            "winword.exe"
+          ],
+          "destinations": [
+            "10.10.1.10:445",
+            "10.10.1.53:53",
+            "198.51.100.10:443"
+          ],
+          "event_count": 462
+        },
+        "PC-02": {
+          "hours": [
+            8,
+            9,
+            10,
+            11,
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "users": [
+            "tran.binh"
+          ],
+          "processes": [
+            "excel.exe",
+            "msedge.exe",
+            "outlook.exe",
+            "winword.exe"
+          ],
+          "destinations": [
+            "10.10.1.10:445",
+            "10.10.1.53:53",
+            "198.51.100.20:443"
+          ],
+          "event_count": 455
+        },
+        "SRV-FILE01": {
+          "hours": [
+            9,
+            10,
+            11,
+            13,
+            14,
+            15,
+            16
+          ],
+          "users": [
+            "admin.it"
+          ],
+          "processes": [
+            "powershell.exe"
+          ],
+          "destinations": [
+            "10.10.1.53:53"
+          ],
+          "event_count": 161
+        }
+      }
+    },
+    "baseline_event_count": 1078,
+    "learned_user_count": 3,
+    "learned_machine_count": 3,
+    "confusion_matrix": {
+      "TP": 8,
+      "FP": 0,
+      "FN": 0,
+      "TN": 10
+    },
+    "metrics": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "false_positive_rate": 0.0,
+      "deviation_tag_match_rate": 1.0
+    },
+    "mitre_technique_counts": {
+      "T1033": 1,
+      "T1053.005": 1,
+      "T1059.001": 2,
+      "T1071.001": 1,
+      "T1078": 2,
+      "T1105": 1
+    },
+    "mitre_recall_by_technique": {
+      "T1033": 1.0,
+      "T1053.005": 1.0,
+      "T1059.001": 1.0,
+      "T1071.001": 1.0,
+      "T1078": 1.0,
+      "T1105": 1.0
+    },
+    "sample_detections": [
+      {
+        "event_id": "test-009",
+        "detector": "ProfileAnomalyDetector",
+        "rule_id": "UEBA-BEHAVIOR-DEVIATION",
+        "target": "nguyen.an@PC-01",
+        "scenario": "atomic_off_hours_logon_2am_pc01",
+        "explanation": "Lệch chuẩn hành vi UEBA: unusual_login_hour, unusual_machine_activity_hour"
+      },
+      {
+        "event_id": "test-010",
+        "detector": "ProfileAnomalyDetector",
+        "rule_id": "UEBA-BEHAVIOR-DEVIATION",
+        "target": "nguyen.an@PC-01",
+        "scenario": "atomic_unusual_powershell_spawn_pc01",
+        "explanation": "Lệch chuẩn hành vi UEBA: unusual_user_activity_hour, unusual_process_for_user, unusual_process_for_machine, unusual_powershell_command"
+      },
+      {
+        "event_id": "test-011",
+        "detector": "ProfileAnomalyDetector",
+        "rule_id": "UEBA-BEHAVIOR-DEVIATION",
+        "target": "nguyen.an@PC-01",
+        "scenario": "atomic_whoami_discovery_pc01",
+        "explanation": "Lệch chuẩn hành vi UEBA: unusual_powershell_command"
+      },
+      {
+        "event_id": "test-012",
+        "detector": "ProfileAnomalyDetector",
+        "rule_id": "UEBA-BEHAVIOR-DEVIATION",
+        "target": "nguyen.an@PC-01",
+        "scenario": "atomic_powershell_file_download_pc01",
+        "explanation": "Lệch chuẩn hành vi UEBA: unusual_powershell_command, download_or_transfer_marker"
+      },
+      {
+        "event_id": "test-013",
+        "detector": "ProfileAnomalyDetector",
+        "rule_id": "UEBA-BEHAVIOR-DEVIATION",
+        "target": "unknown@PC-01",
+        "scenario": "atomic_unusual_outbound_c2_pc01",
+        "explanation": "Lệch chuẩn hành vi UEBA: unusual_network_connection"
+      },
+      {
+        "event_id": "test-014",
+        "detector": "ProfileAnomalyDetector",
+        "rule_id": "UEBA-BEHAVIOR-DEVIATION",
+        "target": "nguyen.an@SRV-FILE01",
+        "scenario": "atomic_lateral_logon_unusual_host",
+        "explanation": "Lệch chuẩn hành vi UEBA: unusual_machine_for_user, unusual_user_for_machine"
+      },
+      {
+        "event_id": "test-015",
+        "detector": "ProfileAnomalyDetector",
+        "rule_id": "UEBA-BEHAVIOR-DEVIATION",
+        "target": "tran.binh@PC-02",
+        "scenario": "atomic_encoded_powershell_pc02",
+        "explanation": "Lệch chuẩn hành vi UEBA: unusual_process_for_user, unusual_process_for_machine, unusual_powershell_command, encoded_or_obfuscated_script_marker"
+      },
+      {
+        "event_id": "test-016",
+        "detector": "ProfileAnomalyDetector",
+        "rule_id": "UEBA-BEHAVIOR-DEVIATION",
+        "target": "tran.binh@PC-02",
+        "scenario": "atomic_schtasks_persistence_pc02",
+        "explanation": "Lệch chuẩn hành vi UEBA: unusual_process_for_user, unusual_process_for_machine"
+      }
+    ]
+  },
+  "lolbin_evaluation": {
+    "source": "Built-in WinLOLBIN-GT 1,000-Sample Benchmark",
+    "csv_files": [
+      "builtin_winlolbin_gt_1000_samples.virtual.csv"
+    ],
+    "confusion_matrix": {
+      "TP": 500,
+      "FP": 0,
+      "FN": 0,
+      "TN": 500
+    },
+    "metrics": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "false_positive_rate": 0.0
+    },
+    "mitre_technique_counts": {
+      "T1105": 100,
+      "T1218": 100,
+      "T1218.005": 100,
+      "T1218.010": 100,
+      "T1218.011": 100
+    },
+    "mitre_recall_by_technique": {
+      "T1105": 1.0,
+      "T1218": 1.0,
+      "T1218.005": 1.0,
+      "T1218.010": 1.0,
+      "T1218.011": 1.0
+    }
+  }
+}

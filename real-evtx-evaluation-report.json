@@ -1,0 +1,79 @@
+{
+  "dataset_source": "VMware NAT Real EVTX Capture",
+  "total_cases": 9,
+  "metrics": {
+    "true_positive": 0,
+    "false_positive": 0,
+    "false_negative": 6,
+    "true_negative": 3,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "false_positive_rate": 0.0
+  },
+  "predictions": [
+    {
+      "case_id": "baseline-day-01",
+      "expected_detected": false,
+      "predicted_detected": false,
+      "max_score": 0,
+      "reasons": []
+    },
+    {
+      "case_id": "baseline-day-02",
+      "expected_detected": false,
+      "predicted_detected": false,
+      "max_score": 0,
+      "reasons": []
+    },
+    {
+      "case_id": "baseline-day-03",
+      "expected_detected": false,
+      "predicted_detected": false,
+      "max_score": 0,
+      "reasons": []
+    },
+    {
+      "case_id": "atomic-T1059-001-test-01",
+      "expected_detected": true,
+      "predicted_detected": false,
+      "max_score": 0,
+      "reasons": []
+    },
+    {
+      "case_id": "atomic-T1082-test-01",
+      "expected_detected": true,
+      "predicted_detected": false,
+      "max_score": 0,
+      "reasons": []
+    },
+    {
+      "case_id": "atomic-T1083-test-01",
+      "expected_detected": true,
+      "predicted_detected": false,
+      "max_score": 0,
+      "reasons": []
+    },
+    {
+      "case_id": "atomic-T1057-test-01",
+      "expected_detected": true,
+      "predicted_detected": false,
+      "max_score": 0,
+      "reasons": []
+    },
+    {
+      "case_id": "atomic-T1016-test-01",
+      "expected_detected": true,
+      "predicted_detected": false,
+      "max_score": 0,
+      "reasons": []
+    },
+    {
+      "case_id": "atomic-T1033-test-01",
+      "expected_detected": true,
+      "predicted_detected": false,
+      "max_score": 0,
+      "reasons": []
+    }
+  ]
+}

@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "baseline_event_count": 1078,
+  "users": {
+    "admin.it": {
+      "hours": [
+        9,
+        10,
+        11,
+        13,
+        14,
+        15,
+        16
+      ],
+      "machines": [
+        "SRV-FILE01"
+      ],
+      "processes": [
+        "powershell.exe"
+      ],
+      "ps_commands": [
+        "get-service | get-childitem",
+        "powershell.exe get-service"
+      ],
+      "destinations": [],
+      "event_count": 112
+    },
+    "nguyen.an": {
+      "hours": [
+        8,
+        9,
+        10,
+        11,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "machines": [
+        "PC-01"
+      ],
+      "processes": [
+        "chrome.exe",
+        "excel.exe",
+        "explorer.exe",
+        "winword.exe"
+      ],
+      "ps_commands": [],
+      "destinations": [],
+      "event_count": 273
+    },
+    "tran.binh": {
+      "hours": [
+        8,
+        9,
+        10,
+        11,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "machines": [
+        "PC-02"
+      ],
+      "processes": [
+        "excel.exe",
+        "msedge.exe",
+        "outlook.exe",
+        "winword.exe"
+      ],
+      "ps_commands": [],
+      "destinations": [
+        "10.10.1.10:445",
+        "10.10.1.53:53",
+        "198.51.100.20:443"
+      ],
+      "event_count": 455
+    }
+  },
+  "machines": {
+    "PC-01": {
+      "hours": [
+        8,
+        9,
+        10,
+        11,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "users": [
+        "nguyen.an"
+      ],
+      "processes": [
+        "chrome.exe",
+        "excel.exe",
+        "explorer.exe",
+        "winword.exe"
+      ],
+      "destinations": [
+        "10.10.1.10:445",
+        "10.10.1.53:53",
+        "198.51.100.10:443"
+      ],
+      "event_count": 462
+    },
+    "PC-02": {
+      "hours": [
+        8,
+        9,
+        10,
+        11,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "users": [
+        "tran.binh"
+      ],
+      "processes": [
+        "excel.exe",
+        "msedge.exe",
+        "outlook.exe",
+        "winword.exe"
+      ],
+      "destinations": [
+        "10.10.1.10:445",
+        "10.10.1.53:53",
+        "198.51.100.20:443"
+      ],
+      "event_count": 455
+    },
+    "SRV-FILE01": {
+      "hours": [
+        9,
+        10,
+        11,
+        13,
+        14,
+        15,
+        16
+      ],
+      "users": [
+        "admin.it"
+      ],
+      "processes": [
+        "powershell.exe"
+      ],
+      "destinations": [
+        "10.10.1.53:53"
+      ],
+      "event_count": 161
+    }
+  }
+}
