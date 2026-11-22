@@ -1,132 +1,93 @@
 {
-  "total_cases": 6,
-  "malicious_cases": 5,
-  "benign_cases": 1,
+  "total_cases": 5,
+  "malicious_cases": 0,
+  "benign_cases": 5,
   "sigma_metrics": {
     "tp": 0,
+    "fp": 5,
+    "fn": 0,
+    "tn": 0,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "fpr": 100.0
+  },
+  "ueba_metrics": {
+    "tp": 0,
     "fp": 0,
-    "fn": 5,
-    "tn": 1,
+    "fn": 0,
+    "tn": 5,
     "precision": 0.0,
     "recall": 0.0,
     "f1": 0.0,
     "fpr": 0.0
   },
-  "ueba_metrics": {
-    "tp": 5,
-    "fp": 0,
-    "fn": 0,
-    "tn": 1,
-    "precision": 100.0,
-    "recall": 100.0,
-    "f1": 1.0,
-    "fpr": 0.0
-  },
   "comparison_table": [
     {
-      "case_id": "baseline-01",
+      "case_id": "baseline-day-01",
       "technique_id": "BASELINE",
-      "name": "Normal user activity",
+      "name": "Day 1 Routine (Office + Dev normal activities)",
       "expected": "BENIGN",
-      "sigma_result": "PASS",
-      "sigma_status": "TN",
+      "sigma_result": "ALERT",
+      "sigma_status": "FP",
       "ueba_score": 0,
       "ueba_result": "NORMAL",
       "ueba_status": "TN",
-      "sigma_details": "None",
+      "sigma_details": "sigma-win-powershell-process-enumeration (Báo nhầm lệnh dev)",
       "ueba_details": "Thói quen khớp lịch sử"
     },
     {
-      "case_id": "atomic-T1110-001",
-      "technique_id": "T1110.001",
-      "name": "SMB Fast Brute-Force",
-      "expected": "MALICIOUS",
-      "sigma_result": "PASS",
-      "sigma_status": "FN",
-      "ueba_score": 75,
-      "ueba_result": "ANOMALY",
-      "ueba_status": "TP",
-      "sigma_details": "None",
-      "ueba_details": "Lệch chuẩn hành vi so với hồ sơ: T1110.001"
+      "case_id": "baseline-day-02",
+      "technique_id": "BASELINE",
+      "name": "Day 2 Routine (Office + Dev normal activities)",
+      "expected": "BENIGN",
+      "sigma_result": "ALERT",
+      "sigma_status": "FP",
+      "ueba_score": 0,
+      "ueba_result": "NORMAL",
+      "ueba_status": "TN",
+      "sigma_details": "sigma-win-powershell-process-enumeration (Báo nhầm lệnh dev)",
+      "ueba_details": "Thói quen khớp lịch sử"
     },
     {
-      "case_id": "atomic-T1110-003",
-      "technique_id": "T1110.003",
-      "name": "SMB Password Spraying",
-      "expected": "MALICIOUS",
-      "sigma_result": "PASS",
-      "sigma_status": "FN",
-      "ueba_score": 75,
-      "ueba_result": "ANOMALY",
-      "ueba_status": "TP",
-      "sigma_details": "None",
-      "ueba_details": "Lệch chuẩn hành vi so với hồ sơ: T1110.003"
+      "case_id": "baseline-day-03",
+      "technique_id": "BASELINE",
+      "name": "Day 3 Routine (Office + Dev normal activities)",
+      "expected": "BENIGN",
+      "sigma_result": "ALERT",
+      "sigma_status": "FP",
+      "ueba_score": 0,
+      "ueba_result": "NORMAL",
+      "ueba_status": "TN",
+      "sigma_details": "sigma-win-powershell-process-enumeration (Báo nhầm lệnh dev)",
+      "ueba_details": "Thói quen khớp lịch sử"
     },
     {
-      "case_id": "atomic-T1059-001",
-      "technique_id": "T1059.001",
-      "name": "Encoded PowerShell Execution",
-      "expected": "MALICIOUS",
-      "sigma_result": "PASS",
-      "sigma_status": "FN",
-      "ueba_score": 75,
-      "ueba_result": "ANOMALY",
-      "ueba_status": "TP",
-      "sigma_details": "None",
-      "ueba_details": "Lệch chuẩn hành vi so với hồ sơ: T1059.001"
+      "case_id": "baseline-day-04",
+      "technique_id": "BASELINE",
+      "name": "Day 4 Routine (Office + Dev normal activities)",
+      "expected": "BENIGN",
+      "sigma_result": "ALERT",
+      "sigma_status": "FP",
+      "ueba_score": 0,
+      "ueba_result": "NORMAL",
+      "ueba_status": "TN",
+      "sigma_details": "sigma-win-powershell-process-enumeration (Báo nhầm lệnh dev)",
+      "ueba_details": "Thói quen khớp lịch sử"
     },
     {
-      "case_id": "atomic-T1053-005",
-      "technique_id": "T1053.005",
-      "name": "Scheduled Task Persistence",
-      "expected": "MALICIOUS",
-      "sigma_result": "PASS",
-      "sigma_status": "FN",
-      "ueba_score": 75,
-      "ueba_result": "ANOMALY",
-      "ueba_status": "TP",
-      "sigma_details": "None",
-      "ueba_details": "Lệch chuẩn hành vi so với hồ sơ: T1053.005"
-    },
-    {
-      "case_id": "atomic-T1105-temp",
-      "technique_id": "T1105",
-      "name": "Temp Staging Binary Execution",
-      "expected": "MALICIOUS",
-      "sigma_result": "PASS",
-      "sigma_status": "FN",
-      "ueba_score": 75,
-      "ueba_result": "ANOMALY",
-      "ueba_status": "TP",
-      "sigma_details": "None",
-      "ueba_details": "Lệch chuẩn hành vi so với hồ sơ: T1105"
+      "case_id": "baseline-day-05",
+      "technique_id": "BASELINE",
+      "name": "Day 5 Routine (Office + Dev normal activities)",
+      "expected": "BENIGN",
+      "sigma_result": "ALERT",
+      "sigma_status": "FP",
+      "ueba_score": 0,
+      "ueba_result": "NORMAL",
+      "ueba_status": "TN",
+      "sigma_details": "sigma-win-powershell-process-enumeration (Báo nhầm lệnh dev)",
+      "ueba_details": "Thói quen khớp lịch sử"
     }
   ],
-  "ai_explanations": [
-    {
-      "case_id": "atomic-T1110-001",
-      "technique_id": "T1110.001",
-      "explanation_markdown": "### 🛡️ CẢNH BÁO BẤT THƯỜNG UEBA: [HIGH] Điểm Lệch Chuẩn 75/100\n- **Đối tượng (User, Host)**: `thucb` trên máy `atck`\n- **Kỹ thuật MITRE ATT&CK**: `Context-Deviation` — Lệch chuẩn hành vi người dùng (Context Deviation)\n- **Chiến thuật**: Vượt mặt phòng thủ / Xóa dấu vết (Defense Evasion)\n\n#### 1. Lời Giải Thích Ngữ Cảnh Từ AI Agent:\n> Phát hiện chuỗi hành vi lệch chuẩn nghiêm trọng (Điểm Anomaly = 75/100) trên tài khoản `thucb` tại máy `atck`. Các sự kiện vi phạm: Lệch chuẩn hành vi so với hồ sơ: T1110.001. Ánh xạ MITRE ATT&CK: **Lệch chuẩn hành vi người dùng (Context Deviation)**.\n\n#### 2. Đối Chiếu Hồ Sơ Lịch Sử & Hành Vi Quan Sát:\n- **Thói quen lịch sử**: Chưa có đủ dữ liệu lịch sử dài ngày cho tài khoản `thucb` trên máy `atck` (chưa từng thấy thói quen dòng lệnh trước đó).\n- **Hành vi vừa diễn ra**: Vào lúc vừa qua, hệ thống ghi nhận 0 sự kiện Windows liên tiếp. Lý do cảnh báo: Lệch chuẩn hành vi so với hồ sơ: T1110.001.\n\n#### 3. Khuyến Nghị Hành Động (SOC Recommendations):\n- [ ] Khóa tạm thời phiên đăng nhập của tài khoản `thucb` và yêu cầu xác thực lại đa yếu tố (MFA).\n- [ ] Cô lập máy trạm `atck` khỏi dải mạng nội bộ nếu phát hiện tiến trình lạ vẫn đang duy trì kết nối.\n- [ ] Kiểm tra lại toàn bộ Scheduled Tasks và dịch vụ khởi động tự động vừa được đăng ký gần nhất.\n- [ ] Trích xuất bộ EVTX trong khung giờ vừa qua để đối chiếu pháp chứng số chuyên sâu."
-    },
-    {
-      "case_id": "atomic-T1110-003",
-      "technique_id": "T1110.003",
-      "explanation_markdown": "### 🛡️ CẢNH BÁO BẤT THƯỜNG UEBA: [HIGH] Điểm Lệch Chuẩn 75/100\n- **Đối tượng (User, Host)**: `thucb` trên máy `atck`\n- **Kỹ thuật MITRE ATT&CK**: `Context-Deviation` — Lệch chuẩn hành vi người dùng (Context Deviation)\n- **Chiến thuật**: Vượt mặt phòng thủ / Xóa dấu vết (Defense Evasion)\n\n#### 1. Lời Giải Thích Ngữ Cảnh Từ AI Agent:\n> Phát hiện chuỗi hành vi lệch chuẩn nghiêm trọng (Điểm Anomaly = 75/100) trên tài khoản `thucb` tại máy `atck`. Các sự kiện vi phạm: Lệch chuẩn hành vi so với hồ sơ: T1110.003. Ánh xạ MITRE ATT&CK: **Lệch chuẩn hành vi người dùng (Context Deviation)**.\n\n#### 2. Đối Chiếu Hồ Sơ Lịch Sử & Hành Vi Quan Sát:\n- **Thói quen lịch sử**: Chưa có đủ dữ liệu lịch sử dài ngày cho tài khoản `thucb` trên máy `atck` (chưa từng thấy thói quen dòng lệnh trước đó).\n- **Hành vi vừa diễn ra**: Vào lúc vừa qua, hệ thống ghi nhận 0 sự kiện Windows liên tiếp. Lý do cảnh báo: Lệch chuẩn hành vi so với hồ sơ: T1110.003.\n\n#### 3. Khuyến Nghị Hành Động (SOC Recommendations):\n- [ ] Khóa tạm thời phiên đăng nhập của tài khoản `thucb` và yêu cầu xác thực lại đa yếu tố (MFA).\n- [ ] Cô lập máy trạm `atck` khỏi dải mạng nội bộ nếu phát hiện tiến trình lạ vẫn đang duy trì kết nối.\n- [ ] Kiểm tra lại toàn bộ Scheduled Tasks và dịch vụ khởi động tự động vừa được đăng ký gần nhất.\n- [ ] Trích xuất bộ EVTX trong khung giờ vừa qua để đối chiếu pháp chứng số chuyên sâu."
-    },
-    {
-      "case_id": "atomic-T1059-001",
-      "technique_id": "T1059.001",
-      "explanation_markdown": "### 🛡️ CẢNH BÁO BẤT THƯỜNG UEBA: [HIGH] Điểm Lệch Chuẩn 75/100\n- **Đối tượng (User, Host)**: `thucb` trên máy `atck`\n- **Kỹ thuật MITRE ATT&CK**: `Context-Deviation` — Lệch chuẩn hành vi người dùng (Context Deviation)\n- **Chiến thuật**: Vượt mặt phòng thủ / Xóa dấu vết (Defense Evasion)\n\n#### 1. Lời Giải Thích Ngữ Cảnh Từ AI Agent:\n> Phát hiện chuỗi hành vi lệch chuẩn nghiêm trọng (Điểm Anomaly = 75/100) trên tài khoản `thucb` tại máy `atck`. Các sự kiện vi phạm: Lệch chuẩn hành vi so với hồ sơ: T1059.001. Ánh xạ MITRE ATT&CK: **Lệch chuẩn hành vi người dùng (Context Deviation)**.\n\n#### 2. Đối Chiếu Hồ Sơ Lịch Sử & Hành Vi Quan Sát:\n- **Thói quen lịch sử**: Chưa có đủ dữ liệu lịch sử dài ngày cho tài khoản `thucb` trên máy `atck` (chưa từng thấy thói quen dòng lệnh trước đó).\n- **Hành vi vừa diễn ra**: Vào lúc vừa qua, hệ thống ghi nhận 0 sự kiện Windows liên tiếp. Lý do cảnh báo: Lệch chuẩn hành vi so với hồ sơ: T1059.001.\n\n#### 3. Khuyến Nghị Hành Động (SOC Recommendations):\n- [ ] Khóa tạm thời phiên đăng nhập của tài khoản `thucb` và yêu cầu xác thực lại đa yếu tố (MFA).\n- [ ] Cô lập máy trạm `atck` khỏi dải mạng nội bộ nếu phát hiện tiến trình lạ vẫn đang duy trì kết nối.\n- [ ] Kiểm tra lại toàn bộ Scheduled Tasks và dịch vụ khởi động tự động vừa được đăng ký gần nhất.\n- [ ] Trích xuất bộ EVTX trong khung giờ vừa qua để đối chiếu pháp chứng số chuyên sâu."
-    },
-    {
-      "case_id": "atomic-T1053-005",
-      "technique_id": "T1053.005",
-      "explanation_markdown": "### 🛡️ CẢNH BÁO BẤT THƯỜNG UEBA: [HIGH] Điểm Lệch Chuẩn 75/100\n- **Đối tượng (User, Host)**: `thucb` trên máy `atck`\n- **Kỹ thuật MITRE ATT&CK**: `Context-Deviation` — Lệch chuẩn hành vi người dùng (Context Deviation)\n- **Chiến thuật**: Vượt mặt phòng thủ / Xóa dấu vết (Defense Evasion)\n\n#### 1. Lời Giải Thích Ngữ Cảnh Từ AI Agent:\n> Phát hiện chuỗi hành vi lệch chuẩn nghiêm trọng (Điểm Anomaly = 75/100) trên tài khoản `thucb` tại máy `atck`. Các sự kiện vi phạm: Lệch chuẩn hành vi so với hồ sơ: T1053.005. Ánh xạ MITRE ATT&CK: **Lệch chuẩn hành vi người dùng (Context Deviation)**.\n\n#### 2. Đối Chiếu Hồ Sơ Lịch Sử & Hành Vi Quan Sát:\n- **Thói quen lịch sử**: Chưa có đủ dữ liệu lịch sử dài ngày cho tài khoản `thucb` trên máy `atck` (chưa từng thấy thói quen dòng lệnh trước đó).\n- **Hành vi vừa diễn ra**: Vào lúc vừa qua, hệ thống ghi nhận 0 sự kiện Windows liên tiếp. Lý do cảnh báo: Lệch chuẩn hành vi so với hồ sơ: T1053.005.\n\n#### 3. Khuyến Nghị Hành Động (SOC Recommendations):\n- [ ] Khóa tạm thời phiên đăng nhập của tài khoản `thucb` và yêu cầu xác thực lại đa yếu tố (MFA).\n- [ ] Cô lập máy trạm `atck` khỏi dải mạng nội bộ nếu phát hiện tiến trình lạ vẫn đang duy trì kết nối.\n- [ ] Kiểm tra lại toàn bộ Scheduled Tasks và dịch vụ khởi động tự động vừa được đăng ký gần nhất.\n- [ ] Trích xuất bộ EVTX trong khung giờ vừa qua để đối chiếu pháp chứng số chuyên sâu."
-    },
-    {
-      "case_id": "atomic-T1105-temp",
-      "technique_id": "T1105",
-      "explanation_markdown": "### 🛡️ CẢNH BÁO BẤT THƯỜNG UEBA: [HIGH] Điểm Lệch Chuẩn 75/100\n- **Đối tượng (User, Host)**: `thucb` trên máy `atck`\n- **Kỹ thuật MITRE ATT&CK**: `Context-Deviation` — Lệch chuẩn hành vi người dùng (Context Deviation)\n- **Chiến thuật**: Vượt mặt phòng thủ / Xóa dấu vết (Defense Evasion)\n\n#### 1. Lời Giải Thích Ngữ Cảnh Từ AI Agent:\n> Phát hiện chuỗi hành vi lệch chuẩn nghiêm trọng (Điểm Anomaly = 75/100) trên tài khoản `thucb` tại máy `atck`. Các sự kiện vi phạm: Lệch chuẩn hành vi so với hồ sơ: T1105. Ánh xạ MITRE ATT&CK: **Lệch chuẩn hành vi người dùng (Context Deviation)**.\n\n#### 2. Đối Chiếu Hồ Sơ Lịch Sử & Hành Vi Quan Sát:\n- **Thói quen lịch sử**: Chưa có đủ dữ liệu lịch sử dài ngày cho tài khoản `thucb` trên máy `atck` (chưa từng thấy thói quen dòng lệnh trước đó).\n- **Hành vi vừa diễn ra**: Vào lúc vừa qua, hệ thống ghi nhận 0 sự kiện Windows liên tiếp. Lý do cảnh báo: Lệch chuẩn hành vi so với hồ sơ: T1105.\n\n#### 3. Khuyến Nghị Hành Động (SOC Recommendations):\n- [ ] Khóa tạm thời phiên đăng nhập của tài khoản `thucb` và yêu cầu xác thực lại đa yếu tố (MFA).\n- [ ] Cô lập máy trạm `atck` khỏi dải mạng nội bộ nếu phát hiện tiến trình lạ vẫn đang duy trì kết nối.\n- [ ] Kiểm tra lại toàn bộ Scheduled Tasks và dịch vụ khởi động tự động vừa được đăng ký gần nhất.\n- [ ] Trích xuất bộ EVTX trong khung giờ vừa qua để đối chiếu pháp chứng số chuyên sâu."
-    }
-  ]
+  "ai_explanations": []
 }
