@@ -2,7 +2,7 @@
 """
 redteam_gui.py
 ==============
-GlobalBan Red Team Studio — MITRE ATT&CK Attack Console
+GlobalBan Red Team Studio — MITRE ATT&CK Attack Console (24 Techniques, 9 Tactics)
 Giao diện đồ họa tối (SOC-style) để thực thi từng kỹ thuật tấn công hoặc
 toàn bộ chiến dịch Red Team nhắm vào máy Blue Team (192.168.52.136).
 
@@ -56,6 +56,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
+    QSpinBox,
     QSplitter,
     QStatusBar,
     QVBoxLayout,
@@ -114,7 +115,7 @@ class AttackWorker(QRunnable):
     def run(self):
         self.signals.status_upd.emit(self.step_id, "running")
         self.signals.log_line.emit(
-            f"\n{'='*60}\n[►] BẮT ĐẦU: {self.step_id}\n{'='*60}"
+            f"\n{'='*65}\n[►] BẮT ĐẦU KỸ THUẬT: {self.step_id}\n{'='*65}"
         )
         try:
             result = self.fn(**self.fn_kwargs)
@@ -147,7 +148,7 @@ class SubprocessWorker(QRunnable):
     def run(self):
         self.signals.status_upd.emit(self.step_id, "running")
         self.signals.log_line.emit(
-            f"\n{'='*60}\n[►] BẮT ĐẦU: {self.step_id}\n{'='*60}"
+            f"\n{'='*65}\n[►] BẮT ĐẦU TIẾN TRÌNH: {self.step_id}\n{'='*65}"
         )
         try:
             self.proc = subprocess.Popen(
@@ -174,7 +175,7 @@ class SubprocessWorker(QRunnable):
 
 
 class CampaignWorker(QRunnable):
-    """Chạy toàn bộ chiến dịch tuần tự — gọi từng fn một, hỗ trợ dừng ngay lập tức."""
+    """Chạy toàn bộ 24 kỹ thuật tuần tự — hỗ trợ dừng ngay lập tức khi nhấn Dừng."""
 
     def __init__(self, steps: list[tuple[str, callable, dict]], cooldown: float = 2.0):
         super().__init__()
@@ -190,23 +191,24 @@ class CampaignWorker(QRunnable):
 
     @Slot()
     def run(self):
+        total_steps = len(self.steps)
         self.signals.log_line.emit(
-            f"\n{'#'*60}\n🚀 TOÀN BỘ CHIẾN DỊCH BẮT ĐẦU\n{'#'*60}"
+            f"\n{'#'*70}\n🚀 BẮT ĐẦU TOÀN BỘ CHIẾN DỊCH RED TEAM ({total_steps} KỸ THUẬT ATT&CK)\n{'#'*70}"
         )
         all_ok = True
         executed_count = 0
 
-        for step_id, fn, kwargs in self.steps:
+        for idx, (step_id, fn, kwargs) in enumerate(self.steps, start=1):
             if self._is_stopped:
                 self.signals.log_line.emit(
-                    f"\n{'='*60}\n⛔ CHIẾN DỊCH ĐÃ BỊ DỪNG BỞI NGƯỜI DÙNG!\n{'='*60}"
+                    f"\n{'='*65}\n⛔ CHIẾN DỊCH ĐÃ BỊ DỪNG BỞI NGƯỜI DÙNG TẠI BƯỚC {idx}/{total_steps}!\n{'='*65}"
                 )
                 self.signals.status_upd.emit(step_id, "waiting")
                 break
 
             self.signals.status_upd.emit(step_id, "running")
             self.signals.log_line.emit(
-                f"\n{'='*55}\n[►] {step_id}\n{'='*55}"
+                f"\n{'='*60}\n[{idx:02d}/{total_steps:02d}] Thực thi: {step_id}\n{'='*60}"
             )
             try:
                 result = fn(**kwargs)
@@ -222,7 +224,7 @@ class CampaignWorker(QRunnable):
                 self.signals.finished.emit(step_id, False)
                 all_ok = False
 
-            # Nghỉ theo cooldown, kiểm tra ngắt dừng mỗi 0.1s
+            # Nghỉ theo cooldown, kiểm tra cờ dừng mỗi 0.1s
             sleep_ticks = int(max(0.5, self.cooldown) * 10)
             for _ in range(sleep_ticks):
                 if self._is_stopped:
@@ -231,11 +233,11 @@ class CampaignWorker(QRunnable):
 
         if self._is_stopped:
             self.signals.log_line.emit(
-                f"\n[⛔] Chiến dịch đã dừng thành công sau khi chạy {executed_count}/{len(self.steps)} bài kiểm thử.\n"
+                f"\n[⛔] Chiến dịch đã dừng thành công sau khi chạy {executed_count}/{total_steps} bài kiểm thử.\n"
             )
         else:
             self.signals.log_line.emit(
-                f"\n{'#'*60}\n{'✅ CHIẾN DỊCH HOÀN TẤT' if all_ok else '⚠️  CHIẾN DỊCH KẾT THÚC (CÓ LỖI)'}\n{'#'*60}"
+                f"\n{'#'*70}\n{'✅ CHIẾN DỊCH HOÀN TẤT TOÀN DIỆN 24 KỸ THUẬT' if all_ok else '⚠️ CHIẾN DỊCH KẾT THÚC (CÓ LỖI)'}\n{'#'*70}"
             )
 
         self.signals.all_done.emit()
@@ -252,11 +254,11 @@ class TechniqueButton(QWidget):
         self.step_id = step_id
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 2, 0, 2)
+        layout.setContentsMargins(0, 1, 0, 1)
         layout.setSpacing(6)
 
         self.badge = QLabel(BADGE_WAIT)
-        self.badge.setFixedWidth(22)
+        self.badge.setFixedWidth(20)
         self.badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.btn = QPushButton(label)
@@ -264,14 +266,14 @@ class TechniqueButton(QWidget):
         self.btn.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
-        self.btn.setMinimumHeight(32)
+        self.btn.setMinimumHeight(30)
         self.btn.setStyleSheet(f"""
             QPushButton {{
                 background: {C_CARD};
                 color: {C_TEXT};
                 border: 1px solid {C_BORDER};
                 border-radius: 4px;
-                padding: 4px 10px;
+                padding: 3px 8px;
                 text-align: left;
                 font-size: 11px;
             }}
@@ -316,8 +318,8 @@ class RedTeamStudio(QMainWindow):
             self._import_ok = False
             self._import_err = str(exc)
 
-        self.setWindowTitle("🔴 GlobalBan Red Team Studio — MITRE ATT&CK Attack Console")
-        self.resize(1300, 840)
+        self.setWindowTitle("🔴 GlobalBan Red Team Studio — MITRE ATT&CK Console (24 Techniques, 9 Tactics)")
+        self.resize(1340, 860)
         self._apply_dark_palette()
 
         self.pool = QThreadPool.globalInstance()
@@ -334,9 +336,9 @@ class RedTeamStudio(QMainWindow):
             self._log(f"[!] CẢNH BÁO: Không import được run_campaign.py\n    {self._import_err}")
             self._log("    Hãy chạy script từ thư mục C:\\redteam-harness\\")
         else:
-            self._log("✅ run_campaign.py đã được nạp thành công.")
+            self._log("✅ run_campaign.py đã nạp thành công bộ 24 kỹ thuật MITRE ATT&CK!")
             self._log(f"📁 Thư mục artifacts: {Path(self.rc.ROOT_DIR)}")
-            self._log("─" * 60)
+            self._log("─" * 65)
 
     # ------------------------------------------------------------------
     # Màu nền tối
@@ -417,7 +419,7 @@ class RedTeamStudio(QMainWindow):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self._build_left_panel())
         splitter.addWidget(self._build_right_panel())
-        splitter.setSizes([350, 950])
+        splitter.setSizes([380, 960])
         root_layout.addWidget(splitter, 1)
 
         # ── Thanh dưới (bottom bar) ─────────────────────────────────────
@@ -425,7 +427,7 @@ class RedTeamStudio(QMainWindow):
 
         # ── Status bar ──────────────────────────────────────────────────
         self.setStatusBar(QStatusBar())
-        self.statusBar().showMessage("Sẵn sàng  |  Red Team: 192.168.52.134  →  Blue Team: 192.168.52.136")
+        self.statusBar().showMessage("Sẵn sàng (24 Kỹ thuật ATT&CK) | Red Team: 192.168.52.134 → Blue Team: 192.168.52.136")
 
     def _build_title_bar(self) -> QWidget:
         bar = QWidget()
@@ -452,7 +454,7 @@ class RedTeamStudio(QMainWindow):
             letter-spacing: 1px;
         """)
 
-        sub = QLabel("MITRE ATT&CK Attack Console  |  Purple Team Lab")
+        sub = QLabel("MITRE ATT&CK Matrix Suite (24 Kỹ Thuật • 9 Tactics) | Purple Team Lab")
         sub.setStyleSheet(f"color: {C_MUTED}; background: transparent; font-size: 11px;")
 
         layout.addWidget(icon)
@@ -462,7 +464,7 @@ class RedTeamStudio(QMainWindow):
         layout.addWidget(sub)
         layout.addStretch()
 
-        version = QLabel("v2.0 — DACN 2026")
+        version = QLabel("v2.2 — ĐACN 2026")
         version.setStyleSheet(f"color: {C_MUTED}; background: transparent; font-size: 10px;")
         layout.addWidget(version)
 
@@ -486,7 +488,7 @@ class RedTeamStudio(QMainWindow):
         lbl_ip.setStyleSheet("font-weight: bold; color: #94A3B8; background: transparent;")
         self.inp_ip = QLineEdit("192.168.52.136")
         self.inp_ip.setFixedWidth(145)
-        self.inp_ip.setToolTip("IP máy Blue Team — chỉ cho phép dải 192.168.52.*")
+        self.inp_ip.setToolTip("IP máy Blue Team — chỉ cho phép dải mạng 192.168.52.*")
 
         # Cooldown
         lbl_cd = QLabel("⏱ Cooldown (s):")
@@ -540,8 +542,8 @@ class RedTeamStudio(QMainWindow):
 
     def _build_left_panel(self) -> QWidget:
         container = QWidget()
-        container.setMinimumWidth(320)
-        container.setMaximumWidth(390)
+        container.setMinimumWidth(340)
+        container.setMaximumWidth(420)
         container.setStyleSheet(f"""
             QWidget {{
                 background: {C_PANEL};
@@ -549,11 +551,11 @@ class RedTeamStudio(QMainWindow):
             }}
         """)
         layout = QVBoxLayout(container)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(4)
 
         # Tiêu đề panel
-        header = QLabel("⚔  KỸ THUẬT MITRE ATT&CK")
+        header = QLabel("⚔  DANH MỤC 24 KỸ THUẬT MITRE ATT&CK")
         header.setStyleSheet(f"""
             font-size: 11px;
             font-weight: bold;
@@ -563,22 +565,34 @@ class RedTeamStudio(QMainWindow):
             background: transparent;
         """)
         layout.addWidget(header)
-        layout.addSpacing(4)
+        layout.addSpacing(2)
 
-        # Danh sách các kỹ thuật
+        # Danh sách 24 kỹ thuật chuẩn MITRE ATT&CK (9 Tactics)
         self._steps: list[tuple[str, str, callable | None]] = [
-            ("baseline",       "📋 5-Day Normal Baseline",           None),
-            ("T1082",          "T1082 — System Info Discovery",      None),
-            ("T1033",          "T1033 — User Discovery",             None),
-            ("T1016/T1049",    "T1016/49 — Network Discovery",       None),
-            ("T1560.001",      "T1560.001 — Archive Staging",        None),
-            ("T1053.005",      "T1053.005 — Scheduled Task",         None),
-            ("T1071.001",      "T1071.001 — C2 Beaconing",          None),
-            ("T1110.001",      "T1110.001 — Brute Force",            None),
-            ("T1110.003",      "T1110.003 — Password Spray",         None),
-            ("T1059.001",      "T1059.001 — Encoded PowerShell",     None),
-            ("T1087.001",      "T1087.001 — Account Discovery",      None),
-            ("ContextDev",     "🔸 Context Deviation (LotL)",        None),
+            ("baseline",       "📋 Baseline: Normal User Routine",            None),
+            ("T1082",          "🔍 T1082 — System Info Discovery",            None),
+            ("T1033",          "👤 T1033 — User Discovery (whoami /all)",     None),
+            ("T1016",          "🌐 T1016 — Network Config (ipconfig, route)", None),
+            ("T1049",          "🔌 T1049 — Net Connections (netstat, arp)",   None),
+            ("T1057",          "⚙️ T1057 — Process Discovery (tasklist /v)",  None),
+            ("T1083",          "📁 T1083 — File & Dir Discovery (crawl)",     None),
+            ("T1087.001",      "👥 T1087.001 — Account Discovery (Admins)",   None),
+            ("T1046",          "📡 T1046 — Network Port Scan (Probes)",       None),
+            ("T1059.001",      "⚡ T1059.001 — Encoded PowerShell (Base64)",  None),
+            ("T1059.003",      "💻 T1059.003 — Command Shell Batch Chaining", None),
+            ("T1053.005",      "⏰ T1053.005 — Scheduled Task Creation",      None),
+            ("T1547.001",      "🗝️ T1547.001 — Registry Run Keys AutoStart",  None),
+            ("T1543.003",      "🛡️ T1543.003 — Windows Service Creation",     None),
+            ("T1218.011",      "🎭 T1218.011 — Rundll32 Proxy (LOLBin)",      None),
+            ("T1105",          "📥 T1105 — Ingress Tool Transfer (certutil)", None),
+            ("T1070.004",      "🗑️ T1070.004 — File Deletion Activity",       None),
+            ("T1070.001",      "🧹 T1070.001 — Event Log Tamper Recon",       None),
+            ("T1110.001",      "🔓 T1110.001 — Brute Force (SMB IPC$)",       None),
+            ("T1110.003",      "🎯 T1110.003 — Password Spray (5 Users)",     None),
+            ("T1021.002",      "🏹 T1021.002 — SMB Shares Recon & IPC$",      None),
+            ("T1560.001",      "📦 T1560.001 — Archive Staging & ZIP",        None),
+            ("T1071.001",      "📡 T1071.001 — Periodic C2 Beaconing",        None),
+            ("ContextDev",     "🌙 Context Deviation (Off-Hours Recon)",      None),
         ]
 
         scroll_area = QScrollArea()
@@ -589,7 +603,7 @@ class RedTeamStudio(QMainWindow):
         scroll_content.setStyleSheet("background: transparent;")
         scroll_layout = QVBoxLayout(scroll_content)
         scroll_layout.setContentsMargins(0, 0, 0, 0)
-        scroll_layout.setSpacing(3)
+        scroll_layout.setSpacing(2)
 
         for step_id, label, _ in self._steps:
             tb = TechniqueButton(step_id, label)
@@ -613,7 +627,7 @@ class RedTeamStudio(QMainWindow):
         btn_action_layout.setSpacing(8)
 
         # Nút RUN ALL
-        self.btn_run_all = QPushButton("🚀  CHẠY TOÀN BỘ")
+        self.btn_run_all = QPushButton("🚀  CHẠY TOÀN BỘ (24 BÀI)")
         self.btn_run_all.setMinimumHeight(44)
         self.btn_run_all.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_run_all.setStyleSheet(f"""
@@ -707,7 +721,7 @@ class RedTeamStudio(QMainWindow):
         """)
         self.log_edit.setPlaceholderText(
             "Nhật ký hoạt động Red Team sẽ xuất hiện ở đây...\n"
-            "Hãy chọn kỹ thuật từ panel bên trái hoặc nhấn [🚀 CHẠY TOÀN BỘ] / [⏹ DỪNG]."
+            "Hãy chọn kỹ thuật từ danh mục 24 bài bên trái hoặc nhấn [🚀 CHẠY TOÀN BỘ] / [⏹ DỪNG]."
         )
         layout.addWidget(self.log_edit, 1)
 
@@ -813,7 +827,7 @@ class RedTeamStudio(QMainWindow):
         return True
 
     # ------------------------------------------------------------------
-    # Mapping step_id → hàm trong run_campaign
+    # Mapping 24 step_id → hàm trong run_campaign
     # ------------------------------------------------------------------
     def _resolve_fn(self, step_id: str) -> tuple[callable, dict] | None:
         if not self._import_ok:
@@ -822,18 +836,30 @@ class RedTeamStudio(QMainWindow):
         rc = self.rc
         ip = self._get_target_ip()
         mapping = {
-            "baseline":     (rc.case_baseline_normal,              {}),
-            "T1082":        (rc.case_t1082_system_info_discovery,  {}),
-            "T1033":        (rc.case_t1033_user_discovery,         {}),
-            "T1016/T1049":  (rc.case_t1016_t1049_network_discovery,{}),
-            "T1560.001":    (rc.case_t1560_001_archive_staging,    {}),
-            "T1053.005":    (rc.case_t1053_005_scheduled_task,     {}),
-            "T1071.001":    (rc.case_t1071_001_c2_beaconing,       {"target_ip": ip}),
-            "T1110.001":    (rc.case_t1110_001_bruteforce,         {"target_ip": ip}),
-            "T1110.003":    (rc.case_t1110_003_password_spray,     {"target_ip": ip}),
-            "T1059.001":    (rc.case_t1059_001_encoded_powershell, {}),
-            "T1087.001":    (rc.case_t1087_001_local_account_discovery, {}),
-            "ContextDev":   (rc.case_context_deviation_off_hours,  {}),
+            "baseline":     (rc.case_baseline_normal,                  {}),
+            "T1082":        (rc.case_t1082_system_info_discovery,      {}),
+            "T1033":        (rc.case_t1033_user_discovery,             {}),
+            "T1016":        (rc.case_t1016_network_config_discovery,   {}),
+            "T1049":        (rc.case_t1049_network_connections_discovery,{}),
+            "T1057":        (rc.case_t1057_process_discovery,          {}),
+            "T1083":        (rc.case_t1083_file_directory_discovery,   {}),
+            "T1087.001":    (rc.case_t1087_001_local_account_discovery,{}),
+            "T1046":        (rc.case_t1046_network_service_scan,       {"target_ip": ip}),
+            "T1059.001":    (rc.case_t1059_001_encoded_powershell,     {}),
+            "T1059.003":    (rc.case_t1059_003_cmd_scripting,          {}),
+            "T1053.005":    (rc.case_t1053_005_scheduled_task,         {}),
+            "T1547.001":    (rc.case_t1547_001_registry_run_keys,      {}),
+            "T1543.003":    (rc.case_t1543_003_windows_service,        {}),
+            "T1218.011":    (rc.case_t1218_011_rundll32_proxy,         {}),
+            "T1105":        (rc.case_t1105_ingress_tool_transfer,      {}),
+            "T1070.004":    (rc.case_t1070_004_file_deletion,          {}),
+            "T1070.001":    (rc.case_t1070_001_event_log_tamper_recon, {}),
+            "T1110.001":    (rc.case_t1110_001_bruteforce,             {"target_ip": ip}),
+            "T1110.003":    (rc.case_t1110_003_password_spray,         {"target_ip": ip}),
+            "T1021.002":    (rc.case_t1021_002_smb_lateral_recon,      {"target_ip": ip}),
+            "T1560.001":    (rc.case_t1560_001_archive_staging,        {}),
+            "T1071.001":    (rc.case_t1071_001_c2_beaconing,           {"target_ip": ip}),
+            "ContextDev":   (rc.case_context_deviation_off_hours,      {}),
         }
         return mapping.get(step_id)
 
@@ -863,7 +889,7 @@ class RedTeamStudio(QMainWindow):
         self._current_campaign_worker = None
         self.btn_run_all.setEnabled(True)
         self.btn_stop.setEnabled(False)
-        self.statusBar().showMessage(f"Sẵn sàng  |  Target: {self._get_target_ip()}")
+        self.statusBar().showMessage(f"Sẵn sàng (24 Kỹ thuật ATT&CK) | Target: {self._get_target_ip()}")
 
     # ------------------------------------------------------------------
     # Event handlers — các nút kỹ thuật
@@ -942,7 +968,6 @@ class RedTeamStudio(QMainWindow):
 
     @Slot()
     def _on_evaluate(self):
-        # Đảm bảo PYTHONPATH chứa đầy đủ các thư mục src cần thiết
         env = os.environ.copy()
         extra_paths = [
             str(HARNESS_DIR / "src"),
@@ -981,7 +1006,7 @@ class RedTeamStudio(QMainWindow):
         self._current_campaign_worker = None
         self.btn_run_all.setEnabled(True)
         self.btn_stop.setEnabled(False)
-        self.statusBar().showMessage(f"Sẵn sàng  |  Target: {self._get_target_ip()}")
+        self.statusBar().showMessage(f"Sẵn sàng (24 Kỹ thuật ATT&CK) | Target: {self._get_target_ip()}")
 
 
 # ===========================================================================
