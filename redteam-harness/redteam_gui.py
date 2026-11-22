@@ -12,6 +12,7 @@ Chạy:    python C:\\redteam-harness\\redteam_gui.py
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import time
@@ -19,10 +20,19 @@ import traceback
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Đảm bảo import được run_campaign từ cùng thư mục
+# Đảm bảo import được run_campaign và các thư viện liên quan
 # ---------------------------------------------------------------------------
 HARNESS_DIR = Path(__file__).parent
 sys.path.insert(0, str(HARNESS_DIR))
+
+# Thêm đường dẫn src để load mô-đun phân tích
+for _extra in [
+    HARNESS_DIR / "src",
+    Path(r"C:\attack-globalban\src"),
+    Path(r"C:\DACN\src"),
+]:
+    if _extra.exists() and str(_extra) not in sys.path:
+        sys.path.insert(0, str(_extra))
 
 from PySide6.QtCore import (
     QObject,
@@ -32,7 +42,7 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-from PySide6.QtGui import QColor, QFont, QPalette, QTextCursor
+from PySide6.QtGui import QFont, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -46,7 +56,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
-    QSpinBox,
     QSplitter,
     QStatusBar,
     QVBoxLayout,
@@ -85,8 +94,9 @@ MONOSPACE_FONT.setStyleHint(QFont.StyleHint.Monospace)
 # ===========================================================================
 class WorkerSignals(QObject):
     log_line   = Signal(str)          # một dòng log mới
-    status_upd = Signal(str, str)     # (step_id, "running" | "done" | "failed")
+    status_upd = Signal(str, str)     # (step_id, "running" | "done" | "failed" | "waiting")
     finished   = Signal(str, bool)    # (step_id, success)
+    all_done   = Signal()             # chiến dịch kết thúc
 
 
 class AttackWorker(QRunnable):
@@ -117,17 +127,21 @@ class AttackWorker(QRunnable):
             self.signals.log_line.emit(traceback.format_exc())
             self.signals.status_upd.emit(self.step_id, "failed")
             self.signals.finished.emit(self.step_id, False)
+        finally:
+            self.signals.all_done.emit()
 
 
 class SubprocessWorker(QRunnable):
     """Chạy một lệnh phụ bằng subprocess, stream từng dòng stdout."""
 
-    def __init__(self, step_id: str, cmd: list[str]):
+    def __init__(self, step_id: str, cmd: list[str], env: dict | None = None):
         super().__init__()
         self.step_id = step_id
         self.cmd     = cmd
+        self.env     = env or os.environ.copy()
         self.signals = WorkerSignals()
         self.setAutoDelete(True)
+        self.proc: subprocess.Popen | None = None
 
     @Slot()
     def run(self):
@@ -136,34 +150,43 @@ class SubprocessWorker(QRunnable):
             f"\n{'='*60}\n[►] BẮT ĐẦU: {self.step_id}\n{'='*60}"
         )
         try:
-            proc = subprocess.Popen(
+            self.proc = subprocess.Popen(
                 self.cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                env=self.env,
             )
-            for line in proc.stdout:
+            for line in self.proc.stdout:
                 self.signals.log_line.emit(line.rstrip())
-            proc.wait()
-            ok = proc.returncode == 0
+            self.proc.wait()
+            ok = self.proc.returncode == 0
             self.signals.status_upd.emit(self.step_id, "done" if ok else "failed")
             self.signals.finished.emit(self.step_id, ok)
         except Exception as exc:
             self.signals.log_line.emit(f"[!] LỖI subprocess: {exc}")
             self.signals.status_upd.emit(self.step_id, "failed")
             self.signals.finished.emit(self.step_id, False)
+        finally:
+            self.signals.all_done.emit()
 
 
 class CampaignWorker(QRunnable):
-    """Chạy toàn bộ chiến dịch tuần tự — gọi từng fn một, chờ hoàn thành."""
+    """Chạy toàn bộ chiến dịch tuần tự — gọi từng fn một, hỗ trợ dừng ngay lập tức."""
 
-    def __init__(self, steps: list[tuple[str, callable, dict]]):
+    def __init__(self, steps: list[tuple[str, callable, dict]], cooldown: float = 2.0):
         super().__init__()
-        self.steps   = steps
-        self.signals = WorkerSignals()
+        self.steps     = steps
+        self.cooldown  = cooldown
+        self.signals   = WorkerSignals()
         self.setAutoDelete(True)
+        self._is_stopped = False
+
+    def stop(self):
+        """Yêu cầu dừng khẩn cấp chiến dịch."""
+        self._is_stopped = True
 
     @Slot()
     def run(self):
@@ -171,7 +194,16 @@ class CampaignWorker(QRunnable):
             f"\n{'#'*60}\n🚀 TOÀN BỘ CHIẾN DỊCH BẮT ĐẦU\n{'#'*60}"
         )
         all_ok = True
+        executed_count = 0
+
         for step_id, fn, kwargs in self.steps:
+            if self._is_stopped:
+                self.signals.log_line.emit(
+                    f"\n{'='*60}\n⛔ CHIẾN DỊCH ĐÃ BỊ DỪNG BỞI NGƯỜI DÙNG!\n{'='*60}"
+                )
+                self.signals.status_upd.emit(step_id, "waiting")
+                break
+
             self.signals.status_upd.emit(step_id, "running")
             self.signals.log_line.emit(
                 f"\n{'='*55}\n[►] {step_id}\n{'='*55}"
@@ -182,18 +214,31 @@ class CampaignWorker(QRunnable):
                     self.signals.log_line.emit(line)
                 self.signals.status_upd.emit(step_id, "done")
                 self.signals.finished.emit(step_id, True)
+                executed_count += 1
             except Exception as exc:
                 self.signals.log_line.emit(f"[!] LỖI: {exc}")
                 self.signals.log_line.emit(traceback.format_exc())
                 self.signals.status_upd.emit(step_id, "failed")
                 self.signals.finished.emit(step_id, False)
                 all_ok = False
-            # Nghỉ ngắn giữa các bước
-            time.sleep(1)
 
-        self.signals.log_line.emit(
-            f"\n{'#'*60}\n{'✅ CHIẾN DỊCH HOÀN TẤT' if all_ok else '⚠️  CHIẾN DỊCH KẾT THÚC (CÓ LỖI)'}\n{'#'*60}"
-        )
+            # Nghỉ theo cooldown, kiểm tra ngắt dừng mỗi 0.1s
+            sleep_ticks = int(max(0.5, self.cooldown) * 10)
+            for _ in range(sleep_ticks):
+                if self._is_stopped:
+                    break
+                time.sleep(0.1)
+
+        if self._is_stopped:
+            self.signals.log_line.emit(
+                f"\n[⛔] Chiến dịch đã dừng thành công sau khi chạy {executed_count}/{len(self.steps)} bài kiểm thử.\n"
+            )
+        else:
+            self.signals.log_line.emit(
+                f"\n{'#'*60}\n{'✅ CHIẾN DỊCH HOÀN TẤT' if all_ok else '⚠️  CHIẾN DỊCH KẾT THÚC (CÓ LỖI)'}\n{'#'*60}"
+            )
+
+        self.signals.all_done.emit()
 
 
 # ===========================================================================
@@ -272,7 +317,7 @@ class RedTeamStudio(QMainWindow):
             self._import_err = str(exc)
 
         self.setWindowTitle("🔴 GlobalBan Red Team Studio — MITRE ATT&CK Attack Console")
-        self.resize(1280, 820)
+        self.resize(1300, 840)
         self._apply_dark_palette()
 
         self.pool = QThreadPool.globalInstance()
@@ -281,6 +326,7 @@ class RedTeamStudio(QMainWindow):
         # Lưu widget nút theo step_id
         self._btn_map: dict[str, TechniqueButton] = {}
         self._running: set[str] = set()
+        self._current_campaign_worker: CampaignWorker | None = None
 
         self._build_ui()
 
@@ -371,7 +417,7 @@ class RedTeamStudio(QMainWindow):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self._build_left_panel())
         splitter.addWidget(self._build_right_panel())
-        splitter.setSizes([340, 920])
+        splitter.setSizes([350, 950])
         root_layout.addWidget(splitter, 1)
 
         # ── Thanh dưới (bottom bar) ─────────────────────────────────────
@@ -439,18 +485,18 @@ class RedTeamStudio(QMainWindow):
         lbl_ip = QLabel("🎯 Target IP:")
         lbl_ip.setStyleSheet("font-weight: bold; color: #94A3B8; background: transparent;")
         self.inp_ip = QLineEdit("192.168.52.136")
-        self.inp_ip.setFixedWidth(150)
-        self.inp_ip.setToolTip("IP máy Blue Team — chỉ cho phép 192.168.52.*")
+        self.inp_ip.setFixedWidth(145)
+        self.inp_ip.setToolTip("IP máy Blue Team — chỉ cho phép dải 192.168.52.*")
 
         # Cooldown
         lbl_cd = QLabel("⏱ Cooldown (s):")
         lbl_cd.setStyleSheet("font-weight: bold; color: #94A3B8; background: transparent;")
         self.spn_cooldown = QDoubleSpinBox()
-        self.spn_cooldown.setRange(0, 60)
+        self.spn_cooldown.setRange(0.5, 60)
         self.spn_cooldown.setValue(2.0)
         self.spn_cooldown.setSingleStep(0.5)
-        self.spn_cooldown.setFixedWidth(70)
-        self.spn_cooldown.setToolTip("Thời gian nghỉ (giây) giữa các bước trong chiến dịch")
+        self.spn_cooldown.setFixedWidth(68)
+        self.spn_cooldown.setToolTip("Thời gian nghỉ (giây) giữa các bài kiểm thử trong chiến dịch")
 
         # Approved checkbox
         self.chk_approved = QCheckBox("✓ ĐÃ ĐƯỢC PHÊ DUYỆT (--approved)")
@@ -468,7 +514,7 @@ class RedTeamStudio(QMainWindow):
         # Clear log
         btn_clear = QPushButton("🗑 Xóa Log")
         btn_clear.setFixedHeight(32)
-        btn_clear.setFixedWidth(90)
+        btn_clear.setFixedWidth(85)
         btn_clear.setStyleSheet(f"""
             QPushButton {{
                 background: {C_CARD};
@@ -485,7 +531,7 @@ class RedTeamStudio(QMainWindow):
         layout.addWidget(self.inp_ip)
         layout.addWidget(lbl_cd)
         layout.addWidget(self.spn_cooldown)
-        layout.addSpacing(16)
+        layout.addSpacing(12)
         layout.addWidget(self.chk_approved)
         layout.addStretch()
         layout.addWidget(btn_clear)
@@ -494,8 +540,8 @@ class RedTeamStudio(QMainWindow):
 
     def _build_left_panel(self) -> QWidget:
         container = QWidget()
-        container.setMinimumWidth(300)
-        container.setMaximumWidth(380)
+        container.setMinimumWidth(320)
+        container.setMaximumWidth(390)
         container.setStyleSheet(f"""
             QWidget {{
                 background: {C_PANEL};
@@ -562,8 +608,12 @@ class RedTeamStudio(QMainWindow):
         layout.addWidget(sep)
         layout.addSpacing(4)
 
+        # ── KHỐI ĐIỀU KHIỂN CHIẾN DỊCH: CHẠY & DỪNG ──────────────────
+        btn_action_layout = QHBoxLayout()
+        btn_action_layout.setSpacing(8)
+
         # Nút RUN ALL
-        self.btn_run_all = QPushButton("🚀  CHẠY TOÀN BỘ CHIẾN DỊCH")
+        self.btn_run_all = QPushButton("🚀  CHẠY TOÀN BỘ")
         self.btn_run_all.setMinimumHeight(44)
         self.btn_run_all.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_run_all.setStyleSheet(f"""
@@ -573,7 +623,7 @@ class RedTeamStudio(QMainWindow):
                 color: #FEF2F2;
                 border: 2px solid {C_ACCENT};
                 border-radius: 6px;
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: bold;
                 letter-spacing: 0.5px;
             }}
@@ -583,13 +633,44 @@ class RedTeamStudio(QMainWindow):
                 color: #FFFFFF;
             }}
             QPushButton:disabled {{
-                background: #2d2d2d;
-                color: #555;
-                border-color: #444;
+                background: #1e2430;
+                color: #4b5563;
+                border-color: #2b3548;
             }}
         """)
         self.btn_run_all.clicked.connect(self._on_run_all)
-        layout.addWidget(self.btn_run_all)
+
+        # Nút DỪNG CHIẾN DỊCH
+        self.btn_stop = QPushButton("⏹  DỪNG")
+        self.btn_stop.setMinimumHeight(44)
+        self.btn_stop.setFixedWidth(105)
+        self.btn_stop.setEnabled(False)
+        self.btn_stop.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_stop.setToolTip("Dừng ngay lập tức chiến dịch đang chạy")
+        self.btn_stop.setStyleSheet(f"""
+            QPushButton {{
+                background: #450a0a;
+                color: #FCA5A5;
+                border: 2px solid {C_ACCENT};
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background: {C_ACCENT};
+                color: #FFFFFF;
+            }}
+            QPushButton:disabled {{
+                background: #161c28;
+                color: #475569;
+                border-color: #243048;
+            }}
+        """)
+        self.btn_stop.clicked.connect(self._on_stop_campaign)
+
+        btn_action_layout.addWidget(self.btn_run_all, 1)
+        btn_action_layout.addWidget(self.btn_stop)
+        layout.addLayout(btn_action_layout)
 
         return container
 
@@ -601,7 +682,7 @@ class RedTeamStudio(QMainWindow):
         layout.setSpacing(6)
 
         # Header log
-        log_header = QLabel("📄 NHẬT KÝ THỰC CHIẾN (Real-time Output)")
+        log_header = QLabel("📄 NHẬT KÝ THỰC CHIẾN (Real-time Telemetry Stream)")
         log_header.setStyleSheet(f"""
             font-size: 11px;
             font-weight: bold;
@@ -626,7 +707,7 @@ class RedTeamStudio(QMainWindow):
         """)
         self.log_edit.setPlaceholderText(
             "Nhật ký hoạt động Red Team sẽ xuất hiện ở đây...\n"
-            "Hãy chọn kỹ thuật từ panel bên trái hoặc nhấn [🚀 CHẠY TOÀN BỘ CHIẾN DỊCH]."
+            "Hãy chọn kỹ thuật từ panel bên trái hoặc nhấn [🚀 CHẠY TOÀN BỘ] / [⏹ DỪNG]."
         )
         layout.addWidget(self.log_edit, 1)
 
@@ -674,15 +755,15 @@ class RedTeamStudio(QMainWindow):
         )
         btn_evaluate = _make_bottom_btn(
             "📊  So sánh Sigma vs UEBA", C_ACCENT2,
-            "Chạy bridge_evaluate.py — xuất bảng Precision/Recall/F1"
+            "Chạy bridge_evaluate.py — xuất bảng đối sánh Precision / Recall / F1"
         )
         btn_artifacts = _make_bottom_btn(
             "📂  Mở Thư mục Artifacts", C_GREEN,
-            "Mở thư mục C:\\redteam-harness\\artifacts trong Explorer"
+            "Mở thư mục C:\\redteam-harness\\artifacts trong Windows Explorer"
         )
         btn_reset = _make_bottom_btn(
             "🔄  Reset Trạng thái", C_MUTED,
-            "Đặt lại tất cả badge về Waiting"
+            "Đặt lại tất cả badge kỹ thuật về trạng thái ban đầu"
         )
 
         btn_validate.clicked.connect(self._on_validate)
@@ -727,7 +808,7 @@ class RedTeamStudio(QMainWindow):
             return False
         ip = self._get_target_ip()
         if not ip.startswith("192.168.52."):
-            self._log(f"[!] IP không hợp lệ: {ip} — Chỉ cho phép dải 192.168.52.*")
+            self._log(f"[!] IP không hợp lệ: {ip} — Chỉ cho phép dải mạng lab 192.168.52.*")
             return False
         return True
 
@@ -762,6 +843,7 @@ class RedTeamStudio(QMainWindow):
     def _connect_worker_signals(self, worker):
         worker.signals.log_line.connect(self._append_log)
         worker.signals.status_upd.connect(self._on_status_update)
+        worker.signals.all_done.connect(self._on_all_workers_finished)
 
     @Slot(str, str)
     def _on_status_update(self, step_id: str, status: str):
@@ -775,6 +857,14 @@ class RedTeamStudio(QMainWindow):
             if not self._running:
                 self.statusBar().showMessage(f"✅ Hoàn tất  |  Target: {self._get_target_ip()}")
 
+    @Slot()
+    def _on_all_workers_finished(self):
+        """Khôi phục trạng thái nút bấm khi tất cả tác vụ kết thúc."""
+        self._current_campaign_worker = None
+        self.btn_run_all.setEnabled(True)
+        self.btn_stop.setEnabled(False)
+        self.statusBar().showMessage(f"Sẵn sàng  |  Target: {self._get_target_ip()}")
+
     # ------------------------------------------------------------------
     # Event handlers — các nút kỹ thuật
     # ------------------------------------------------------------------
@@ -787,12 +877,14 @@ class RedTeamStudio(QMainWindow):
             self._log(f"[!] Không tìm thấy hàm cho step: {step_id}")
             return
         fn, kwargs = result
+        self.btn_run_all.setEnabled(False)
+        self.btn_stop.setEnabled(True)
         worker = AttackWorker(step_id, fn, kwargs)
         self._connect_worker_signals(worker)
         self.pool.start(worker)
 
     # ------------------------------------------------------------------
-    # Event handler — Run All Campaign
+    # Event handler — Run All Campaign & Stop Campaign
     # ------------------------------------------------------------------
     @Slot()
     def _on_run_all(self):
@@ -802,7 +894,7 @@ class RedTeamStudio(QMainWindow):
             self._log("[!] run_campaign chưa được nạp.")
             return
 
-        # Tạo danh sách steps cho CampaignWorker
+        cooldown = self.spn_cooldown.value()
         campaign_steps = []
         for step_id, _, _ in self._steps:
             result = self._resolve_fn(step_id)
@@ -810,9 +902,28 @@ class RedTeamStudio(QMainWindow):
                 fn, kwargs = result
                 campaign_steps.append((step_id, fn, kwargs))
 
-        worker = CampaignWorker(campaign_steps)
+        worker = CampaignWorker(campaign_steps, cooldown=cooldown)
+        self._current_campaign_worker = worker
         self._connect_worker_signals(worker)
+
+        self.btn_run_all.setEnabled(False)
+        self.btn_stop.setEnabled(True)
+        self.statusBar().showMessage(f"🚀 Đang chạy toàn bộ chiến dịch ({len(campaign_steps)} bài) → {self._get_target_ip()}...")
         self.pool.start(worker)
+
+    @Slot()
+    def _on_stop_campaign(self):
+        """Dừng khẩn cấp toàn bộ chiến dịch đang chạy."""
+        if self._current_campaign_worker:
+            self._log("\n[⛔] ĐÃ NHẤN NÚT DỪNG CHIẾN DỊCH! Đang hủy các bước tiếp theo...")
+            self.statusBar().showMessage("⛔ Đang dừng chiến dịch khẩn cấp...")
+            self._current_campaign_worker.stop()
+            self.btn_stop.setEnabled(False)
+            self.btn_run_all.setEnabled(True)
+        else:
+            self._log("[ℹ] Không có chiến dịch nào đang chạy.")
+            self.btn_stop.setEnabled(False)
+            self.btn_run_all.setEnabled(True)
 
     # ------------------------------------------------------------------
     # Bottom bar handlers
@@ -824,19 +935,34 @@ class RedTeamStudio(QMainWindow):
             "validate_handoff",
             [sys.executable, script]
         )
+        self.btn_run_all.setEnabled(False)
+        self.btn_stop.setEnabled(True)
         self._connect_worker_signals(worker)
         self.pool.start(worker)
 
     @Slot()
     def _on_evaluate(self):
-        # Thử bridge_evaluate trong harness dir trước, rồi DACN
+        # Đảm bảo PYTHONPATH chứa đầy đủ các thư mục src cần thiết
+        env = os.environ.copy()
+        extra_paths = [
+            str(HARNESS_DIR / "src"),
+            r"C:\attack-globalban\src",
+            r"C:\DACN\src",
+        ]
+        curr_pp = env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = os.pathsep.join(extra_paths + ([curr_pp] if curr_pp else []))
+
         script_harness = HARNESS_DIR / "bridge_evaluate.py"
         script_dacn    = Path(r"C:\DACN\bridge_evaluate.py")
         script = str(script_harness) if script_harness.exists() else str(script_dacn)
+
         worker = SubprocessWorker(
             "bridge_evaluate",
-            [sys.executable, script]
+            [sys.executable, script],
+            env=env,
         )
+        self.btn_run_all.setEnabled(False)
+        self.btn_stop.setEnabled(True)
         self._connect_worker_signals(worker)
         self.pool.start(worker)
 
@@ -852,6 +978,10 @@ class RedTeamStudio(QMainWindow):
             tb.set_status("waiting")
         self._log("🔄 Đã reset tất cả badge về Waiting.")
         self._running.clear()
+        self._current_campaign_worker = None
+        self.btn_run_all.setEnabled(True)
+        self.btn_stop.setEnabled(False)
+        self.statusBar().showMessage(f"Sẵn sàng  |  Target: {self._get_target_ip()}")
 
 
 # ===========================================================================

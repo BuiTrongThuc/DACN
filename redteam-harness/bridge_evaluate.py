@@ -14,6 +14,7 @@ from pathlib import Path
 # Đảm bảo import được module globalban từ thư mục src của dự án DACN
 for _extra_path in [
     Path(__file__).resolve().parent / "src",
+    Path(r"C:\attack-globalban\src"),
     Path(r"C:\DACN\src"),
     Path(r"C:\Users\PC1\globalban\src"),
 ]:
