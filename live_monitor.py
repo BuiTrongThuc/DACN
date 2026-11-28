@@ -108,15 +108,24 @@ def _write_audit(candidate: RiskCandidate) -> None:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
-def _write_audit_event(event_id: int, host: str, user: str, detail: str) -> None:
-    """Ghi sự kiện thường vào audit."""
+def _write_audit_event(
+    event_id: int,
+    host: str,
+    user: str,
+    detail: str,
+    *,
+    event_record_id: str | None = None,
+    event_time: str | None = None,
+) -> None:
+    """Ghi sự kiện thường vào audit kèm EventRecordID và thời gian."""
     record = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": event_time or datetime.now(timezone.utc).isoformat(),
         "event": "WINDOWS_EVENT",
         "event_id": event_id,
+        "event_record_id": event_record_id or "",
         "host": host,
         "username": user,
-        "detail": detail[:300],
+        "detail": detail[:1500],
     }
     with AUDIT_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -195,7 +204,14 @@ def main() -> None:
                     f"user={ev.username or '?':12s} "
                     f"{C.DIM}{detail[:60]}{C.RESET}"
                 )
-                _write_audit_event(ev.event_id, ev.host or "", ev.username or "", detail)
+                _write_audit_event(
+                    ev.event_id,
+                    ev.host or "",
+                    ev.username or "",
+                    detail,
+                    event_record_id=ev.event_record_id,
+                    event_time=ev.timestamp.isoformat(),
+                )
 
             # Chấm điểm UEBA + Correlator
             candidate = correlator.add(ev)

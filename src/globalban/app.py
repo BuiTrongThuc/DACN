@@ -44,6 +44,14 @@ class GlobalBanApp:
         self._live_alert_count_var: tk.StringVar | None = None
         self._live_last_seen: int = 0
         self._live_refresh_job: str | None = None
+        self._chat_window: tk.Frame | None = None
+        self._chat_log: tk.Text | None = None
+        self._chat_entry: tk.Entry | None = None
+        self._chat_input: tk.StringVar = tk.StringVar()
+        self._chat_suggestions_frame: tk.Frame | None = None
+        self._chat_feedback_frame: tk.Frame | None = None
+        self._chat_last_qa: dict[str, str] = {}
+        self._nl_agent: object | None = None
         self._pages: dict[str, tk.Frame] = {}
         self._monitor_page: tk.Frame | None = None
         self._proxy_bind = tk.StringVar(value="127.0.0.1")
@@ -78,8 +86,82 @@ class GlobalBanApp:
         self._build_ui()
         for variable in (self._ai_enabled, self._ai_model, self._ai_base_url):
             variable.trace_add("write", self._schedule_ai_settings_autosave)
+        # Chặn phím Alt hoặc Alt+Space kích hoạt System Menu của Windows khi đang gõ tiếng Việt (Unikey/EVKey)
+        self._root.bind_all("<Alt-space>", lambda _e: "break")
+        self._root.bind_all("<KeyPress-Alt_L>", lambda _e: "break")
+        self._root.bind_all("<KeyRelease-Alt_L>", lambda _e: "break")
+        self._root.bind_all("<KeyPress-Alt_R>", lambda _e: "break")
+        self._root.bind_all("<KeyRelease-Alt_R>", lambda _e: "break")
+        self._root.bind_all("<KeyPress-F10>", lambda _e: "break")
+        self._win32_wndproc_cb: object | None = None
+        self._root.after(100, self._install_win32_keymenu_blocker)
         self._root.protocol("WM_DELETE_WINDOW", self._close)
         self._root.after(200, self._drain_output)
+
+    def _install_win32_keymenu_blocker(self) -> None:
+        """Chặn trực tiếp thông điệp Win32 WM_SYSCOMMAND (SC_KEYMENU) mở System Menu khi gõ Space/Alt."""
+        if sys.platform != "win32":
+            return
+        try:
+            import ctypes
+            import ctypes.wintypes as wt
+
+            user32 = ctypes.windll.user32
+            WNDPROC = ctypes.WINFUNCTYPE(
+                ctypes.c_ssize_t, wt.HWND, wt.UINT, wt.WPARAM, wt.LPARAM
+            )
+            user32.CallWindowProcW.argtypes = [
+                ctypes.c_void_p,
+                wt.HWND,
+                wt.UINT,
+                wt.WPARAM,
+                wt.LPARAM,
+            ]
+            user32.CallWindowProcW.restype = ctypes.c_ssize_t
+            set_window_long = getattr(
+                user32, "SetWindowLongPtrW", getattr(user32, "SetWindowLongW", None)
+            )
+            get_window_long = getattr(
+                user32, "GetWindowLongPtrW", getattr(user32, "GetWindowLongW", None)
+            )
+            if set_window_long is None or get_window_long is None:
+                return
+            set_window_long.argtypes = [wt.HWND, ctypes.c_int, ctypes.c_void_p]
+            set_window_long.restype = ctypes.c_void_p
+            get_window_long.argtypes = [wt.HWND, ctypes.c_int]
+            get_window_long.restype = ctypes.c_void_p
+
+            self._root.update_idletasks()
+            hwnd = user32.GetAncestor(self._root.winfo_id(), 2) or self._root.winfo_id()
+            old_proc = get_window_long(hwnd, -4)  # GWL_WNDPROC = -4
+            if not old_proc:
+                return
+
+            WM_SYSCOMMAND = 0x0112
+            SC_KEYMENU = 0xF100
+            WM_SYSKEYDOWN = 0x0104
+            WM_SYSKEYUP = 0x0105
+            WM_SYSCHAR = 0x0106
+            VK_SPACE = 0x20
+            VK_MENU = 0x12
+            VK_F10 = 0x79
+
+            def _wnd_proc(h: int, msg: int, wp: int, lp: int) -> int:
+                # Chặn mọi lệnh mở System Menu từ bàn phím (Alt+Space, Alt đơn lẻ + Space, F10)
+                if msg == WM_SYSCOMMAND and (wp & 0xFFF0) == SC_KEYMENU:
+                    return 0
+                if msg in (WM_SYSKEYDOWN, WM_SYSKEYUP, WM_SYSCHAR) and wp in (
+                    VK_SPACE,
+                    VK_MENU,
+                    VK_F10,
+                ):
+                    return 0
+                return int(user32.CallWindowProcW(old_proc, h, msg, wp, lp))
+
+            self._win32_wndproc_cb = WNDPROC(_wnd_proc)
+            set_window_long(hwnd, -4, ctypes.cast(self._win32_wndproc_cb, ctypes.c_void_p))
+        except Exception:
+            pass
 
     def _toggle_live(self) -> None:
         if self._live_mode.get() and not messagebox.askyesno(
@@ -302,7 +384,20 @@ class GlobalBanApp:
             text = f"{text} ({self._status_detail})"
         return text
 
+    _LANG_LABELS = {
+        "vi": "🌐 Tiếng Việt (VI)",
+        "en": "🌐 English (EN)",
+    }
+    _LANG_CODES = {
+        "🌐 Tiếng Việt (VI)": "vi",
+        "🌐 English (EN)": "en",
+    }
+
     def _change_language(self, _event: object | None = None) -> None:
+        if hasattr(self, "_language_display"):
+            selected_label = self._language_display.get()
+            code = self._LANG_CODES.get(selected_label, "vi")
+            self._language.set(code)
         for key, variable in self._text_vars.items():
             variable.set(self._translate(key))
         self._root.title(self._translate("window_title"))
@@ -329,6 +424,9 @@ class GlobalBanApp:
         self._root.option_add("*Font", "{Segoe UI} 10")
         self._root.option_add("*TCombobox*Listbox.background", palette["panel_alt"])
         self._root.option_add("*TCombobox*Listbox.foreground", palette["text"])
+        self._root.option_add("*TCombobox*Listbox.selectBackground", "#1c4166")
+        self._root.option_add("*TCombobox*Listbox.selectForeground", palette["cyan"])
+        self._root.option_add("*TCombobox*Listbox.font", "{Segoe UI} 10")
 
         style = ttk.Style(self._root)
         style.theme_use("clam")
@@ -337,10 +435,20 @@ class GlobalBanApp:
             fieldbackground=palette["panel_alt"],
             background=palette["panel_alt"],
             foreground=palette["text"],
-            bordercolor=palette["line"],
+            bordercolor=palette["cyan"],
             lightcolor=palette["line"],
             darkcolor=palette["line"],
             arrowcolor=palette["cyan"],
+            arrowsize=14,
+            padding=(10, 6, 10, 6),
+        )
+        style.map(
+            "GlobalBan.TCombobox",
+            fieldbackground=[("readonly", palette["panel_alt"]), ("focus", "#1c2838")],
+            background=[("readonly", palette["panel_alt"]), ("active", "#1c2838")],
+            foreground=[("readonly", palette["text"])],
+            bordercolor=[("focus", palette["cyan"]), ("readonly", palette["line"])],
+            arrowcolor=[("active", "#82e6e2"), ("readonly", palette["cyan"])],
         )
         style.configure(
             "GlobalBan.Treeview",
@@ -395,6 +503,24 @@ class GlobalBanApp:
             anchor="w",
         )
         self._live_tab_btn.pack(fill="x")
+        # Tab AI SOC CHAT — giao tiếp ngôn ngữ tự nhiên
+        chat_btn_frame = tk.Frame(sidebar, bg=palette["sidebar"], pady=3)
+        chat_btn_frame.pack(fill="x")
+        self._chat_tab_btn = tk.Button(
+            chat_btn_frame,
+            text="💬  06  AI SOC CHAT",
+            command=self._open_chat_panel,
+            fg=palette["cyan"],
+            bg="#0d1e2a",
+            activebackground="#153144",
+            activeforeground=palette["cyan"],
+            relief="flat",
+            padx=10,
+            pady=10,
+            font=("Segoe UI", 9, "bold"),
+            anchor="w",
+        )
+        self._chat_tab_btn.pack(fill="x")
         tk.Label(sidebar, text="DỮ LIỆU & KIỂM SOÁT", fg="#536579", bg=palette["sidebar"], font=("Consolas", 7, "bold")).pack(anchor="w", pady=(18, 7))
         self._nav_item(sidebar, "02", "telemetry", command=self._open_telemetry_panel)
         self._nav_item(sidebar, "03", "audit", command=self._open_audit_panel)
@@ -420,7 +546,18 @@ class GlobalBanApp:
         header_right = tk.Frame(header, bg=palette["bg"])
         header_right.pack(side="right", anchor="n")
         tk.Label(header_right, textvariable=self._status, fg=palette["cyan"], bg="#17333a", padx=12, pady=6, font=("Segoe UI", 9, "bold")).pack(side="left")
-        language = ttk.Combobox(header_right, textvariable=self._language, values=("vi", "en"), state="readonly", width=5, style="GlobalBan.TCombobox")
+        self._language_display = tk.StringVar(
+            value=self._LANG_LABELS.get(self._language.get(), "🌐 Tiếng Việt (VI)")
+        )
+        language = ttk.Combobox(
+            header_right,
+            textvariable=self._language_display,
+            values=tuple(self._LANG_LABELS.values()),
+            state="readonly",
+            width=18,
+            font=("Segoe UI", 9, "bold"),
+            style="GlobalBan.TCombobox",
+        )
         language.pack(side="left", padx=(10, 0))
         language.bind("<<ComboboxSelected>>", self._change_language)
 
@@ -611,7 +748,7 @@ class GlobalBanApp:
         else:
             tk.Label(content, textvariable=self._text(key), fg=self._palette["text"], bg=background, font=("Segoe UI", 9, "bold")).pack(side="left", padx=(9, 0))
 
-    def _bind_hover(self, widget: tk.Widget, normal: str, hover: str) -> None:
+    def _bind_hover(self, widget: tk.Button, normal: str, hover: str) -> None:
         widget.bind("<Enter>", lambda _event: widget.configure(bg=hover))
         widget.bind("<Leave>", lambda _event: widget.configure(bg=normal))
 
@@ -1204,7 +1341,7 @@ class GlobalBanApp:
         from pathlib import Path as _Path
         if self._live_tree is None or not self._live_tree.winfo_exists():
             return
-        alert_file = _Path("globalban-live-alerts.jsonl")
+        alert_file = _Path(__file__).resolve().parents[2] / "globalban-live-alerts.jsonl"
         if hasattr(self, "_live_file_label") and self._live_file_label is not None:
             self._live_file_label.set(str(alert_file.resolve()))
         rows_alert: list[tuple] = []
@@ -1309,7 +1446,353 @@ class GlobalBanApp:
         except OSError as exc:
             messagebox.showerror("Live Monitor", f"Khong the khoi dong: {exc}")
 
+    # ── AI SOC CHAT PANEL (NATURAL LANGUAGE) ───────────────────────────────
 
+    def _open_chat_panel(self) -> None:
+        """Mở giao diện Chat bằng ngôn ngữ tự nhiên với GlobalBan AI SOC Agent."""
+        palette = self._palette
+        if self._chat_window is not None and self._chat_window.winfo_exists():
+            self._show_page("chat")
+            if self._chat_entry is not None and self._chat_entry.winfo_exists():
+                self._root.after(50, self._chat_entry.focus_set)
+            return
+        window = self._new_page("chat")
+        self._chat_window = window
+
+        header = tk.Frame(window, bg=palette["bg"])
+        header.pack(fill="x", pady=(0, 14))
+        left = tk.Frame(header, bg=palette["bg"])
+        left.pack(side="left")
+        tk.Label(
+            left,
+            text="💬  AI SOC AGENT ",
+            fg=palette["cyan"],
+            bg=palette["bg"],
+            font=("Bahnschrift", 22, "bold"),
+        ).pack(anchor="w")
+        tk.Label(
+            left,
+            text="Đặt câu hỏi bằng Tiếng Việt hoặc Tiếng Anh về cảnh báo Windows, UEBA Baseline, 12 Tools và kho RAG (AD-GEN, LOLBin, MITRE)",
+            fg=palette["muted"],
+            bg=palette["bg"],
+            font=("Segoe UI", 9),
+        ).pack(anchor="w", pady=(3, 0))
+
+        # Khung hội thoại
+        body = tk.Frame(
+            window,
+            bg=palette["panel"],
+            padx=16,
+            pady=14,
+            highlightthickness=1,
+            highlightbackground=palette["line"],
+        )
+        body.pack(fill="both", expand=True)
+
+        self._chat_log = tk.Text(
+            body,
+            bg="#080b10",
+            fg=palette["text"],
+            insertbackground=palette["text"],
+            relief="flat",
+            wrap="word",
+            state="disabled",
+            font=("Segoe UI", 10),
+            padx=12,
+            pady=10,
+        )
+        scrollbar = ttk.Scrollbar(body, orient="vertical", command=self._chat_log.yview)
+        self._chat_log.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+        self._chat_log.pack(fill="both", expand=True)
+
+        self._chat_log.tag_configure("user", foreground=palette["amber"], font=("Segoe UI", 10, "bold"))
+        self._chat_log.tag_configure("agent_header", foreground=palette["cyan"], font=("Consolas", 9, "bold"))
+        self._chat_log.tag_configure("agent_body", foreground="#dbe7f0", font=("Segoe UI", 10))
+        self._chat_log.tag_configure("meta", foreground=palette["green"], font=("Consolas", 8))
+
+        # Thanh công cụ thông minh: Nút gợi ý câu hỏi tiếp theo + Phản hồi 👍/👎
+        smart_bar = tk.Frame(window, bg=palette["bg"])
+        smart_bar.pack(fill="x", pady=(10, 0))
+        self._chat_suggestions_frame = tk.Frame(smart_bar, bg=palette["bg"])
+        self._chat_suggestions_frame.pack(side="left", fill="x", expand=True)
+        self._chat_feedback_frame = tk.Frame(smart_bar, bg=palette["bg"])
+        self._chat_feedback_frame.pack(side="right")
+
+        self._render_follow_up_suggestions(
+            (
+                "Hôm nay có hành vi gì bất thường không?",
+                "Trạng thái hồ sơ UEBA Baseline hiện tại thế nào?",
+                "Phân tích kỹ thuật MITRE T1059.001 PowerShell",
+            )
+        )
+
+        # Thanh nhập câu hỏi
+        input_bar = tk.Frame(window, bg=palette["panel"], padx=14, pady=12, highlightthickness=1, highlightbackground=palette["line"])
+        input_bar.pack(fill="x", pady=(10, 0))
+        entry = tk.Entry(
+            input_bar,
+            textvariable=self._chat_input,
+            bg=palette["panel_alt"],
+            fg=palette["text"],
+            insertbackground=palette["text"],
+            relief="flat",
+            font=("Segoe UI", 10),
+        )
+        self._chat_entry = entry
+        entry.pack(side="left", fill="x", expand=True, ipady=8, padx=(0, 10))
+        entry.bind("<Return>", lambda _e: self._submit_chat())
+        entry.bind("<Alt-space>", lambda _e: "break")
+        tk.Button(
+            input_bar,
+            text="Gửi câu hỏi ➔",
+            command=self._submit_chat,
+            bg=palette["cyan"],
+            fg="#071417",
+            activebackground="#82e6e2",
+            relief="flat",
+            padx=18,
+            pady=7,
+            font=("Segoe UI", 9, "bold"),
+        ).pack(side="left")
+        tk.Button(
+            input_bar,
+            text="Xóa hội thoại",
+            command=self._clear_chat,
+            bg=palette["panel_alt"],
+            fg=palette["muted"],
+            relief="flat",
+            padx=12,
+            pady=7,
+            font=("Segoe UI", 9),
+        ).pack(side="left", padx=(8, 0))
+        self._root.after(50, entry.focus_set)
+
+    def _render_follow_up_suggestions(self, suggestions: tuple[str, ...]) -> None:
+        if self._chat_suggestions_frame is None or not self._chat_suggestions_frame.winfo_exists():
+            return
+        for child in self._chat_suggestions_frame.winfo_children():
+            child.destroy()
+        if not suggestions:
+            return
+        palette = self._palette
+        tk.Label(
+            self._chat_suggestions_frame,
+            text="💡 Gợi ý hỏi tiếp:",
+            fg=palette["muted"],
+            bg=palette["bg"],
+            font=("Segoe UI", 8, "bold"),
+        ).pack(side="left", padx=(0, 6))
+        for q in suggestions[:3]:
+            btn = tk.Button(
+                self._chat_suggestions_frame,
+                text=q,
+                command=lambda prompt=q: self._ask_suggested_question(prompt),
+                bg=palette["panel_alt"],
+                fg=palette["cyan"],
+                activebackground="#1c3448",
+                activeforeground=palette["text"],
+                relief="flat",
+                padx=10,
+                pady=4,
+                font=("Segoe UI", 8),
+                cursor="hand2",
+            )
+            btn.pack(side="left", padx=(0, 6))
+
+    def _ask_suggested_question(self, prompt: str) -> None:
+        self._chat_input.set(prompt)
+        self._submit_chat()
+
+    def _render_feedback_buttons(self) -> None:
+        if self._chat_feedback_frame is None or not self._chat_feedback_frame.winfo_exists():
+            return
+        for child in self._chat_feedback_frame.winfo_children():
+            child.destroy()
+        if not self._chat_last_qa:
+            return
+        palette = self._palette
+        tk.Label(
+            self._chat_feedback_frame,
+            text="Đánh giá câu trả lời:",
+            fg=palette["muted"],
+            bg=palette["bg"],
+            font=("Segoe UI", 8),
+        ).pack(side="left", padx=(0, 6))
+        tk.Button(
+            self._chat_feedback_frame,
+            text="👍 Hữu ích",
+            command=lambda: self._submit_feedback("up"),
+            bg="#10251f",
+            fg=palette["green"],
+            activebackground="#1d493a",
+            activeforeground=palette["green"],
+            relief="flat",
+            padx=9,
+            pady=3,
+            font=("Segoe UI", 8, "bold"),
+            cursor="hand2",
+        ).pack(side="left", padx=(0, 4))
+        tk.Button(
+            self._chat_feedback_frame,
+            text="👎 Chưa tốt",
+            command=lambda: self._submit_feedback("down"),
+            bg="#261216",
+            fg=palette["red"],
+            activebackground="#3d1a21",
+            activeforeground=palette["red"],
+            relief="flat",
+            padx=9,
+            pady=3,
+            font=("Segoe UI", 8, "bold"),
+            cursor="hand2",
+        ).pack(side="left")
+
+    def _submit_feedback(self, rating: str) -> None:
+        if not self._chat_last_qa or self._nl_agent is None:
+            return
+        try:
+            self._nl_agent.record_feedback(  # type: ignore[attr-defined]
+                query=self._chat_last_qa.get("query", ""),
+                answer=self._chat_last_qa.get("answer", ""),
+                rating=rating,
+                intent=self._chat_last_qa.get("intent", ""),
+                model_used=self._chat_last_qa.get("model", ""),
+            )
+            if self._chat_feedback_frame is not None and self._chat_feedback_frame.winfo_exists():
+                for child in self._chat_feedback_frame.winfo_children():
+                    child.destroy()
+                msg = "✓ Đã ghi nhận 👍" if rating == "up" else "✓ Đã ghi nhận 👎 (Sẽ tự động tối ưu prompt)"
+                color = self._palette["green"] if rating == "up" else self._palette["amber"]
+                tk.Label(
+                    self._chat_feedback_frame,
+                    text=msg,
+                    fg=color,
+                    bg=self._palette["bg"],
+                    font=("Segoe UI", 8, "bold"),
+                ).pack(side="left")
+        except Exception:
+            pass
+
+    def _clear_chat(self) -> None:
+        if self._chat_log is None or not self._chat_log.winfo_exists():
+            return
+        if self._nl_agent is not None and hasattr(self._nl_agent, "clear_memory"):
+            self._nl_agent.clear_memory()  # type: ignore[attr-defined]
+        self._chat_last_qa.clear()
+        self._chat_log.configure(state="normal")
+        self._chat_log.delete("1.0", "end")
+        self._chat_log.configure(state="disabled")
+        if self._chat_feedback_frame is not None and self._chat_feedback_frame.winfo_exists():
+            for child in self._chat_feedback_frame.winfo_children():
+                child.destroy()
+        if self._chat_entry is not None and self._chat_entry.winfo_exists():
+            self._chat_entry.focus_set()
+
+    def _append_chat_message(self, sender: str, text: str, *, meta: str = "") -> None:
+        if self._chat_log is None or not self._chat_log.winfo_exists():
+            return
+        self._chat_log.configure(state="normal")
+        ts = time.strftime("%H:%M:%S")
+        if sender == "Bạn":
+            self._chat_log.insert("end", f"\n[{ts}] 👤 BẠN (SOC Analyst):\n", "user")
+            self._chat_log.insert("end", f"{text}\n", "agent_body")
+        else:
+            self._chat_log.insert("end", f"\n[{ts}] 🛡️ CHUYÊN GIA AI SOC", "agent_header")
+            if meta:
+                self._chat_log.insert("end", f"  ({meta})", "meta")
+            self._chat_log.insert("end", "\n", "agent_header")
+            self._chat_log.insert("end", f"{text}\n", "agent_body")
+            self._chat_log.insert("end", "─" * 85 + "\n", "meta")
+        self._chat_log.see("end")
+        self._chat_log.configure(state="disabled")
+
+    def _stream_agent_response(
+        self,
+        *,
+        question: str,
+        clean_answer: str,
+        meta: str,
+        intent: str,
+        model_used: str,
+        suggestions: tuple[str, ...],
+    ) -> None:
+        """Hiệu ứng Streaming: chữ hiện dần tự nhiên từng cụm từ trên giao diện Chat."""
+        if self._chat_log is None or not self._chat_log.winfo_exists():
+            return
+        ts = time.strftime("%H:%M:%S")
+        self._chat_log.configure(state="normal")
+        self._chat_log.insert("end", f"\n[{ts}] 🛡️ CHUYÊN GIA AI SOC", "agent_header")
+        if meta:
+            self._chat_log.insert("end", f"  ({meta})", "meta")
+        self._chat_log.insert("end", "\n", "agent_header")
+        self._chat_log.configure(state="disabled")
+
+        tokens = re.findall(r"\S+\s*|\n", clean_answer)
+        step_size = 2
+
+        def _insert_chunk(idx: int) -> None:
+            if self._chat_log is None or not self._chat_log.winfo_exists():
+                return
+            self._chat_log.configure(state="normal")
+            if idx < len(tokens):
+                chunk = "".join(tokens[idx : idx + step_size])
+                self._chat_log.insert("end", chunk, "agent_body")
+                self._chat_log.see("end")
+                self._chat_log.configure(state="disabled")
+                self._root.after(18, lambda: _insert_chunk(idx + step_size))
+            else:
+                self._chat_log.insert("end", "\n" + "─" * 85 + "\n", "meta")
+                self._chat_log.see("end")
+                self._chat_log.configure(state="disabled")
+                self._chat_last_qa = {
+                    "query": question,
+                    "answer": clean_answer,
+                    "intent": intent,
+                    "model": model_used,
+                }
+                self._render_follow_up_suggestions(suggestions)
+                self._render_feedback_buttons()
+
+        _insert_chunk(0)
+
+    def _submit_chat(self) -> None:
+        question = self._chat_input.get().strip()
+        if not question:
+            return
+        self._chat_input.set("")
+        if self._chat_entry is not None and self._chat_entry.winfo_exists():
+            self._chat_entry.focus_set()
+        self._append_chat_message("Bạn", question)
+        threading.Thread(target=self._run_chat_query, args=(question,), daemon=True).start()
+
+    def _run_chat_query(self, question: str) -> None:
+        from globalban.agent.assistant import NaturalLanguageAgent
+        try:
+            if self._nl_agent is None:
+                self._nl_agent = NaturalLanguageAgent()
+            response = self._nl_agent.ask(question)  # type: ignore[attr-defined]
+            clean_answer = response.answer.replace("**", "").replace("`", "")
+            mem_turns = len(self._nl_agent.history) // 2  # type: ignore[attr-defined]
+            meta = (
+                f"Model: {response.model_used} [{response.complexity}] | "
+                f"Bộ nhớ: {mem_turns} lượt | Bằng chứng: {response.evidence_count}"
+            )
+            self._root.after(
+                0,
+                lambda: self._stream_agent_response(
+                    question=question,
+                    clean_answer=clean_answer,
+                    meta=meta,
+                    intent=response.intent,
+                    model_used=response.model_used,
+                    suggestions=response.follow_up_suggestions,
+                ),
+            )
+        except Exception as exc:
+            self._root.after(0, lambda: self._append_chat_message("AI SOC Agent", f"[Lỗi xử lý câu hỏi]: {exc}"))
+
+    def _clear_filter_hint(self, entry: tk.Entry) -> None:
         if self._log_filter.get() == self._translate("filter_logs"):
             self._log_filter.set("")
             entry.configure(fg=self._palette["text"])

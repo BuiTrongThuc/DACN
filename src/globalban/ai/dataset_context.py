@@ -31,11 +31,42 @@ class DatasetReference:
     label: str = ""
 
 
+_VI_TO_EN_SECURITY_MAP: tuple[tuple[str, str], ...] = (
+    ("mã hóa", "encodedcommand base64 obfuscated deobfuscate t1059.001 t1140"),
+    ("giải mã", "decode base64 frombase64string deobfuscate t1140"),
+    ("tải về", "download downloadstring invoke-webrequest curl bitsadmin certutil t1105"),
+    ("tải file", "download invoke-webrequest certutil urlcache bitsadmin t1105"),
+    ("bám trụ", "persistence scheduled task schtasks service registry run key t1053.005 t1543.003"),
+    ("lập lịch", "scheduled task schtasks t1053.005"),
+    ("dịch vụ", "service creation sc.exe system 7045 t1543.003"),
+    ("xóa nhật ký", "clear event log wevtutil clear-eventlog 1102 defense evasion t1070.001"),
+    ("xóa log", "clear event log wevtutil clear-eventlog 1102 auditpol t1070.001"),
+    ("đánh cắp mật khẩu", "credential dumping lsass sam mimikatz comsvcs ntds t1003"),
+    ("mật khẩu", "credential access password brute force 4625 lsass t1110 t1003"),
+    ("đăng nhập thất bại", "failed logon brute force password spraying 4625 t1110"),
+    ("leo thang đặc quyền", "privilege escalation admin token 4672 localgroup administrators t1068 t1078"),
+    ("tạo tài khoản", "create account net user 4720 4728 4732 t1136"),
+    ("tiến trình", "process creation 4688 sysmon command line parent process"),
+    ("mạng", "network connection discovery port scan firewall 5156 sysmon t1046"),
+    ("ẩn mình", "hidden window bypass executionpolicy defense evasion"),
+)
+
+
+def _expand_bilingual_query(value: str) -> str:
+    lower = value.lower()
+    expansions: list[str] = [lower]
+    for vi_phrase, en_terms in _VI_TO_EN_SECURITY_MAP:
+        if vi_phrase in lower:
+            expansions.append(en_terms)
+    return " ".join(expansions)
+
+
 def _tokens(value: str) -> set[str]:
+    expanded = _expand_bilingual_query(value)
     return {
         token
-        for token in re.findall(r"[a-z0-9_./:-]{3,}", value.lower())
-        if token not in {"the", "and", "event", "process"}
+        for token in re.findall(r"[a-z0-9_./:-]{3,}", expanded)
+        if token not in {"the", "and", "event", "process", "for", "with", "from", "this", "that"}
     }
 
 
@@ -80,10 +111,9 @@ class ADGenPreprocessor:
                 loaded_from_csv = True
                 break
 
-        # 2. Đồng thời hoặc fallback đọc từ JSONL trong LAB và REAL
-        if not loaded_from_csv or len(self._records) < max_records:
-            remaining = max_records - len(self._records)
-            per_path = max(1000, remaining // 2)
+        # 2. Chỉ fallback đọc từ JSONL trong LAB và REAL khi chưa có file CSV mẫu
+        if not loaded_from_csv:
+            per_path = max(1000, max_records // 2)
             for path in (root / "LAB", root / "REAL"):
                 for record in _jsonl_records(path, max_records=per_path):
                     narrative = str(record.get("narrative") or "")
@@ -288,9 +318,37 @@ def _rank(
     *,
     limit: int,
 ) -> tuple[DatasetReference, ...]:
+    import math
+
+    record_list = list(records)
+    if not record_list:
+        return ()
     query = _tokens(text)
+    if not query:
+        return ()
+
+    # Tính trọng số IDF cho từng token trong query để các mã MITRE (T1059.001) hoặc tên công cụ hiếm (certutil, lsass) có điểm cao hơn từ phổ thông
+    n_docs = len(record_list)
+    doc_freq: dict[str, int] = {}
+    for q_tok in query:
+        df = sum(1 for tokens, _ in record_list if q_tok in tokens)
+        if df > 0:
+            doc_freq[q_tok] = df
+
+    def _score_doc(tokens: set[str], ref: DatasetReference) -> float:
+        overlap = query.intersection(tokens)
+        if not overlap:
+            return 0.0
+        score = 0.0
+        ref_tech = (ref.technique or "").lower()
+        for tok in overlap:
+            idf = math.log(1.0 + (n_docs / (1.0 + doc_freq.get(tok, 1))))
+            boost = 2.5 if (tok.startswith("t1") or tok in ref_tech) else 1.0
+            score += idf * boost
+        return score / (1.0 + 0.02 * len(tokens))
+
     ranked = sorted(
-        ((len(query.intersection(tokens)), reference) for tokens, reference in records),
+        ((_score_doc(tokens, reference), reference) for tokens, reference in record_list),
         key=lambda item: item[0],
         reverse=True,
     )

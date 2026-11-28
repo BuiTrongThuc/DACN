@@ -41,7 +41,7 @@ audit:
   path: globalban-audit.jsonl
 ai:
   enabled: true
-  base_url: http://127.0.0.1:8080/v1
-  model: gemini-2.5-flash
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  model: gemini-3.1-flash-lite
 notifications:
   whatsapp_enabled: false

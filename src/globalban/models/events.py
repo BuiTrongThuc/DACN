@@ -75,3 +75,7 @@ class WindowsEvent:
     @property
     def command_line(self) -> str | None:
         return self.fields.get("CommandLine") or self.fields.get("ScriptBlockText")
+
+    @property
+    def event_record_id(self) -> str | None:
+        return self.fields.get("EventRecordID")
